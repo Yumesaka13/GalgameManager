@@ -13,7 +13,7 @@ import {
   resolveVarForDevice
 } from '@utils/resolveVar'
 import { getSortType, setSortType as setSortTypeCached } from '@utils/sortTypeCache'
-import { durationToSecs } from '@utils/time'
+import { durationToSecs, formatSessionDuration } from '@utils/time'
 import { useI18n } from '~/i18n'
 import { cn } from '~/lib/utils'
 import { useConfig } from '~/store'
@@ -57,23 +57,6 @@ const GamePage = (): JSX.Element => {
 
   const [sortType, setSortType] = createSignal<SortType>('id')
   const sessionStartTimes = new Map<number, number>()
-
-  const formatSessionDuration = (durationMs: number) => {
-    const totalSecs = Math.max(0, Math.floor(durationMs / 1000))
-    const hours = Math.floor(totalSecs / 3600)
-    const minutes = Math.floor((totalSecs % 3600) / 60)
-    const seconds = totalSecs % 60
-
-    if (hours > 0) {
-      return `${hours}h${minutes}m`
-    }
-
-    if (minutes > 0) {
-      return `${minutes}m${seconds}s`
-    }
-
-    return `${seconds}s`
-  }
 
   // 避免切换路由后丢失游戏状态
   onMount(() => {
@@ -253,9 +236,7 @@ const GamePage = (): JSX.Element => {
           const duration = formatSessionDuration(Date.now() - startTime)
           sessionStartTimes.delete(game.id)
           if (event.payload) {
-            toast.success(
-              `${game.name} ${t('game.sessionDuration', { duration })}`
-            )
+            toast.success(`${game.name} ${t('game.sessionDuration', { duration })}`)
           } else {
             toast.error(`${game.name}${t('hint.exitAbnormally')} (${duration})`)
           }
