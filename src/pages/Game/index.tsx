@@ -25,6 +25,7 @@ import {
   TbOutlineSortAscendingNumbers
 } from 'solid-icons/tb'
 import {
+  createEffect,
   createMemo,
   createSignal,
   For,
@@ -91,11 +92,6 @@ const GamePage = (): JSX.Element => {
   const sortedGames = createMemo(() => {
     // 浅拷贝数组以避免修改 Store
     const games = [...config.games]
-    const ids = games.map(g => g.id)
-    // 检查重复 ID
-    if (ids.length !== new Set(ids).size) {
-      toast.error(t('hint.duplicateGameId'))
-    }
     const type = sortType()
 
     return games.sort((a, b) => {
@@ -122,6 +118,17 @@ const GamePage = (): JSX.Element => {
   const getRealIndex = (gameId: number) => {
     return config.games.findIndex(g => g.id === gameId)
   }
+
+  // Duplicate-ID detection is a side effect — keep it out of the (pure)
+  // sortedGames memo so it doesn't fire during render or repeat per recompute.
+  createEffect(() => {
+    const games = config.games
+    if (games.length === 0) return
+    const ids = games.map(g => g.id)
+    if (ids.length !== new Set(ids).size) {
+      toast.error(t('hint.duplicateGameId'))
+    }
+  })
 
   // ── Virtualized responsive grid ───────────────────────────────────────────
   // The game grid uses CSS auto-fill columns (minmax(11rem,1fr)). Virtual
