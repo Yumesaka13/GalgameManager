@@ -1,9 +1,7 @@
 // src/pages/settings/AppearanceTab.tsx
-import { type ThemeMode } from '@bindings/ThemeMode'
-import { Select, SettingRow, SettingSection, SwitchToggle } from '@components/ui/settings'
+import { SettingRow, SettingSection, SwitchToggle } from '@components/ui/settings'
 import { useI18n } from '~/i18n'
 import { useConfig } from '~/store'
-import { IoLanguage } from 'solid-icons/io'
 import { type Component } from 'solid-js'
 
 export const LaunchTab: Component = () => {

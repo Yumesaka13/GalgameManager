@@ -1,5 +1,5 @@
 // src/pages/settings/Settings.tsx
-import { Tabs, type TabItem } from '@components/ui/tabs'
+import { Tabs } from '@components/ui/tabs'
 import { useI18n } from '~/i18n'
 import { createSignal, Match, Switch, type Component } from 'solid-js'
 import { AppearanceTab } from './AppearanceTab'

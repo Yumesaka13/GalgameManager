@@ -10,7 +10,7 @@
  */
 import * as KobalteSwitch from '@kobalte/core/switch'
 import { cn } from '~/lib/utils'
-import { splitProps, type Component, type JSX } from 'solid-js'
+import { For, splitProps, type Component, type JSX } from 'solid-js'
 
 // ─── Size type ────
 
@@ -114,11 +114,13 @@ export const Select: Component<SelectProps> = props => {
         value={local.value}
         {...others}
       >
-        {local.options.map(opt => (
-          <option value={opt.value} selected={opt.value === local.value}>
-            {opt.label}
-          </option>
-        ))}
+        <For each={local.options}>
+          {opt => (
+            <option value={opt.value} selected={opt.value === local.value}>
+              {opt.label}
+            </option>
+          )}
+        </For>
       </select>
       {/* Chevron icon */}
       <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center text-gray-400 px-1.5">

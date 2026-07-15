@@ -37,7 +37,6 @@ import {
   type Component,
   type JSX
 } from 'solid-js'
-import { unwrap } from 'solid-js/store'
 import toast from 'solid-toast'
 import { Virtualizer } from 'virtua/solid'
 import GameEditModal from './GameEditModal'
@@ -87,11 +86,12 @@ const GamePage = (): JSX.Element => {
             b.name,
             config.settings.appearance.language || 'zh-CN'
           )
-        case 'lastPlayed':
+        case 'lastPlayed': {
           // 处理 null 情况，未游玩的排在后面
           const timeA = a.lastPlayedTime ? new Date(a.lastPlayedTime).getTime() : 0
           const timeB = b.lastPlayedTime ? new Date(b.lastPlayedTime).getTime() : 0
           return timeB - timeA
+        }
         case 'playTime':
           return durationToSecs(b.useTime) - durationToSecs(a.useTime)
         case 'id':
@@ -337,7 +337,7 @@ const GamePage = (): JSX.Element => {
 
       toast.loading(t('hint.uploading') + game.name + '...', { id: toastId })
 
-      unlistenUploadError = await listen<String>('sync://failed', event => {
+      unlistenUploadError = await listen<string>('sync://failed', event => {
         const { payload } = event
         toast.loading(
           `${t('hint.uploading')} ${game.name}...\n${t('hint.retryError')}: ${payload}`,

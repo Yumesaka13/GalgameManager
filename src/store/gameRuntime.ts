@@ -44,7 +44,7 @@ export async function initGameRuntime(t: TFunc): Promise<void> {
   if (runtimeInitialized) return
   runtimeInitialized = true
 
-  let ids: number[] = []
+  let ids: number[]
   try {
     ids = await invoke<number[]>('running_game_ids')
   } catch (e) {

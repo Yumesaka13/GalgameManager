@@ -1,7 +1,7 @@
 import { cn } from '~/lib/utils'
 import { FiAlertTriangle, FiInfo, FiX } from 'solid-icons/fi'
 import { For, Show, type JSX } from 'solid-js'
-import toast, { type Toast } from 'solid-toast'
+import toast from 'solid-toast'
 
 // ----------------------------------------------------------------------
 // solid-toast–style animated icons (co-located, matching the visual style
@@ -262,7 +262,7 @@ export const myToast = (props: CustomToastOptions) => {
               {action => (
                 <button
                   onClick={() => {
-                    action.onClick && action.onClick()
+                    action.onClick?.()
                     toast.dismiss(t.id)
                   }}
                   class={cn(

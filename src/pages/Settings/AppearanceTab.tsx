@@ -23,7 +23,7 @@ import { createMemo, type Component } from 'solid-js'
 export const AppearanceTab: Component = () => {
   const { config, actions } = useConfig()
   const { setColorMode } = useColorMode()
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
 
   return (
     <div class="max-w-4xl">

@@ -173,10 +173,7 @@ export const GameItem = (props: GameItemProps) => {
   )
 }
 
-export const GameItemWrapper = ({
-  children,
-  extra_class
-}: {
+export const GameItemWrapper = (props: {
   children: JSX.Element
   extra_class?: string
 }) => {
@@ -184,10 +181,10 @@ export const GameItemWrapper = ({
     <div
       class={cn(
         'relative rounded-xl overflow-hidden bg-white dark:bg-slate-700 shadow-lg hover:shadow-xl transition-shadow duration-300 w-44 h-72 flex flex-col',
-        extra_class
+        props.extra_class
       )}
     >
-      {children}
+      {props.children}
     </div>
   )
 }

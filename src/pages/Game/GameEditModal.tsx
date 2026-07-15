@@ -200,7 +200,7 @@ export default function GameEditModal(props: GameEditModalProps) {
           })
         }
       }
-    } catch (e) {
+    } catch {
       if (isSearching() && searchId() === currentSearchId) {
         myToast({
           variant: 'error',

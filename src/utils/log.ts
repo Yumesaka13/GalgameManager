@@ -35,29 +35,23 @@ export function log(level: LogLevel, ...args: unknown[]) {
   })
 }
 
-/**
- * 使用 namespace 扩展 log 函数，支持 log.info('msg', obj) 调用方式
- */
-export namespace log {
-  // 注意：这里的字符串 ('trace', 'info' 等) 需要匹配你 LogLevel 类型定义的实际值。
-
-  export function trace(...args: unknown[]) {
-    log('trace', ...args)
-  }
-
-  export function debug(...args: unknown[]) {
-    log('debug', ...args)
-  }
-
-  export function info(...args: unknown[]) {
-    log('info', ...args)
-  }
-
-  export function warn(...args: unknown[]) {
-    log('warn', ...args)
-  }
-
-  export function error(...args: unknown[]) {
-    log('error', ...args)
-  }
+// Namespace-free equivalents of the old `namespace log` API. Attaching the
+// level helpers as plain function properties keeps every existing
+// `log.info(...)` / `log.warn(...)` call site working without an ES
+// namespace (which eslint flags).
+// 注意：这里的字符串 ('trace', 'info' 等) 需要匹配你 LogLevel 类型定义的实际值。
+log.trace = function (...args: unknown[]) {
+  log('trace', ...args)
+}
+log.debug = function (...args: unknown[]) {
+  log('debug', ...args)
+}
+log.info = function (...args: unknown[]) {
+  log('info', ...args)
+}
+log.warn = function (...args: unknown[]) {
+  log('warn', ...args)
+}
+log.error = function (...args: unknown[]) {
+  log('error', ...args)
 }
