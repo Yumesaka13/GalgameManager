@@ -8,6 +8,7 @@ import { myToast, type ToastVariant } from '@components/ui/myToast'
 import * as i18n from '@solid-primitives/i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { resolveBackendI18n } from '@utils/backendI18n'
 import { log } from '@utils/log'
 import { type Dictionary } from '~/i18n'
 import { onCleanup, onMount } from 'solid-js'
@@ -25,22 +26,6 @@ interface ToastEventPayload {
 }
 
 /**
- * Resolve i18n keys in backend toast messages.
- *
- * Backend messages may contain `<i18n.key>` tokens which are replaced
- * with the translated string.  Everything outside `<>` is kept as-is.
- * Nested or unclosed tags are left untouched.
- *
- * Example: `"AutoUpload: <hint.syncFailed>game X"` → `"AutoUpload: 同步失败: game X"`
- */
-function resolveBackendI18n(raw: string, t: i18n.Translator<Dictionary>): string {
-  return raw.replace(/<([a-zA-Z0-9._]+)>/g, (_match, key: string) => {
-    // t() returns the key itself when not found, which is fine
-    return t(key as keyof Dictionary) as string
-  })
-}
-
-/**
  * Start listening for `toast://show` and `toast://dismiss` events emitted by
  * the Rust backend.  Returns an unlisten function for each listener.
  */
@@ -50,7 +35,10 @@ const startToastListener = async (t: i18n.Translator<Dictionary>) => {
   const unlistenShow = await listen<ToastEventPayload>('toast://show', event => {
     const { variant, message, toast_id } = event.payload
     const v = (validVariants.has(variant) ? variant : 'default') as ToastVariant
-    const resolved = resolveBackendI18n(message, t)
+    const resolved = resolveBackendI18n(
+      message,
+      key => t(key as keyof Dictionary) as string
+    )
     const toastId = toast_id ?? undefined
     myToast({ variant: v, message: resolved, toastId })
   })

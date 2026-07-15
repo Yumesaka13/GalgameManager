@@ -4,6 +4,7 @@ import {
   durationToForm,
   durationToSecs,
   formatAbsoluteIso,
+  formatSessionDuration,
   formatTimeAgo,
   formatTimeAgoLocale,
   inputToDate,
@@ -50,6 +51,25 @@ describe('displayDuration', () => {
     expect(displayDuration([3661, 0])).toBe('1h1m')
     expect(displayDuration([0, 0])).toBe('0h0m')
     expect(displayDuration([7200, 0])).toBe('2h0m')
+  })
+})
+
+describe('formatSessionDuration', () => {
+  it('formats sub-minute durations as seconds', () => {
+    expect(formatSessionDuration(0)).toBe('0s')
+    expect(formatSessionDuration(45_000)).toBe('45s')
+  })
+  it('formats minutes with seconds', () => {
+    expect(formatSessionDuration(125_000)).toBe('2m5s') // 2m5s
+  })
+  it('formats hours with minutes (seconds dropped)', () => {
+    expect(formatSessionDuration(3 * 3_600_000 + 2 * 60_000)).toBe('3h2m')
+  })
+  it('clamps negative input to 0s', () => {
+    expect(formatSessionDuration(-5_000)).toBe('0s')
+  })
+  it('floors fractional seconds', () => {
+    expect(formatSessionDuration(59_999)).toBe('59s')
   })
 })
 
