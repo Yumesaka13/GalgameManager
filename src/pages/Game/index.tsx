@@ -382,7 +382,16 @@ const GamePage = (): JSX.Element => {
 
   return (
     <>
-      <div class="flex flex-col py-4 pl-4 pr-0 w-full h-full">
+      {/*
+        DropArea lives at the page level (not inside the virtualized grid) so
+        its global drag listeners and release-hint overlay stay mounted
+        regardless of scroll position. Dropping a file anywhere opens the
+        add-game modal.
+      */}
+      <DropArea
+        callback={handleDropAdd}
+        class="flex flex-col py-4 pl-4 pr-0 w-full h-full"
+      >
         {/* 头部区域：标题 + 排序控件 */}
         <div class="flex flex-row justify-between items-center mb-4">
           <h1 class="text-2xl font-bold dark:text-white">{t('game.self')}</h1>
@@ -444,17 +453,12 @@ const GamePage = (): JSX.Element => {
                         class="flex flex-col flex-1 items-center justify-center text-center cursor-pointer w-full h-full group"
                         onClick={() => openGameAddModal()}
                       >
-                        <DropArea
-                          callback={handleDropAdd}
-                          class="w-full h-full flex flex-col items-center justify-center"
-                        >
-                          <AiTwotonePlusCircle class="w-16 h-16 text-gray-400 group-hover:text-blue-500 transition-colors duration-300" />
-                          <p class="text-gray-500 dark:text-gray-400 text-sm mt-2 px-4 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">
-                            {t('game.clickToAdd')}
-                            <br />
-                            {t('game.orDrag')}
-                          </p>
-                        </DropArea>
+                        <AiTwotonePlusCircle class="w-16 h-16 text-gray-400 group-hover:text-blue-500 transition-colors duration-300" />
+                        <p class="text-gray-500 dark:text-gray-400 text-sm mt-2 px-4 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">
+                          {t('game.clickToAdd')}
+                          <br />
+                          {t('game.orDrag')}
+                        </p>
                       </div>
                     </GameItemWrapper>
                   </Show>
@@ -463,7 +467,7 @@ const GamePage = (): JSX.Element => {
             }}
           </Virtualizer>
         </div>
-      </div>
+      </DropArea>
 
       <Show when={isEditModalOpen()}>
         <FullScreenMask onClose={closeEditModal}>
