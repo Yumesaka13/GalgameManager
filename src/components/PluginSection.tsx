@@ -37,7 +37,8 @@ interface PluginSectionProps {
 /** Check whether a plugin type is enabled via its meta config. */
 const isPluginEnabled = (metas: PluginMetadatas, pluginId: string): boolean => {
   const meta = metas[pluginId as keyof PluginMetadatas] as
-    { enabled?: boolean } | undefined
+    | { enabled?: boolean }
+    | undefined
   return meta?.enabled !== false
 }
 
