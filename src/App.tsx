@@ -13,9 +13,9 @@ from 'solid-js'
 import { Toaster } from 'solid-toast'
 import { I18nProvider, useI18n, type Locale } from './i18n'
 import Game from './pages/Game'
+import Statistics from './pages/Statistics'
 import Plugin from './pages/Plugin'
 import Settings from './pages/Settings'
-import Statistics from './pages/Statistics'
 import { Sidebar, SidebarItem } from './Sidebar'
 import { checkAndPullRemote, performAutoUpload, useConfig, useConfigInit } from './store'
 import { useAutoUploadService } from './store/AutoUploadService'
@@ -86,9 +86,9 @@ const MainLayout: Component = () => {
       <div class="flex-1 min-w-0 p-0 dark:bg-slate-800 dark:text-gray-400 h-full overflow-hidden relative transition-colors duration-200">
         <Router>
           <Route path={['/Game', '/', '']} component={Game} />
+          <Route path="/Statistics" component={Statistics} />
           <Route path="/Plugin" component={Plugin} />
           <Route path="/Settings" component={Settings} />
-          <Route path="/Statistics" component={Statistics} />
         </Router>
       </div>
     </>
