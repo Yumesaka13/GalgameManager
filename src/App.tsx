@@ -4,11 +4,11 @@ import {
   createLocalStorageManager,
   useColorMode
 } from '@kobalte/core'
-import { Route, Router, useLocation } from '@solidjs/router'
+import { Navigate, Route, Router } from '@solidjs/router'
 import { BiRegularExtension } from 'solid-icons/bi'
 import { CgGames } from 'solid-icons/cg'
 import { IoSettingsOutline } from 'solid-icons/io'
-import { createEffect, createMemo, createSignal, onMount, type Component } from 'solid-js'
+import { createEffect, createSignal, type Component, type JSX } from 'solid-js'
 import { Toaster } from 'solid-toast'
 import { I18nProvider, useI18n, type Locale } from './i18n'
 import Game from './pages/Game'
@@ -19,7 +19,9 @@ import { checkAndPullRemote, performAutoUpload, useConfig, useConfigInit } from 
 import { useAutoUploadService } from './store/AutoUploadService'
 import { initGameRuntime } from './store/gameRuntime'
 
-const MainLayout: Component = () => {
+// Persistent shell: stays mounted across route changes (it's the router
+// root), so the sidebar and all startup side effects run once.
+const MainLayout: Component<{ children?: JSX.Element }> = props => {
   const { config } = useConfig()
   const { t, setLocale } = useI18n()
   const { colorMode } = useColorMode()
@@ -80,11 +82,7 @@ const MainLayout: Component = () => {
 
       {/* 让页面内容自己处理 overflow 滚动 */}
       <div class="flex-1 min-w-0 p-0 dark:bg-slate-800 dark:text-gray-400 h-full overflow-hidden relative transition-colors duration-200">
-        <Router>
-          <Route path={['/Game', '/', '']} component={Game} />
-          <Route path="/Plugin" component={Plugin} />
-          <Route path="/Settings" component={Settings} />
-        </Router>
+        {props.children}
       </div>
     </>
   )
@@ -98,7 +96,12 @@ const App: Component = () => {
       <ColorModeScript storageType={storageManager.type} />
       <ColorModeProvider storageManager={storageManager}>
         <I18nProvider>
-          <MainLayout />
+          <Router root={MainLayout}>
+            <Route path="/Game" component={Game} />
+            <Route path="/" component={() => <Navigate href="/Game" />} />
+            <Route path="/Plugin" component={Plugin} />
+            <Route path="/Settings" component={Settings} />
+          </Router>
           <Toaster
             position="bottom-left"
             toastOptions={{

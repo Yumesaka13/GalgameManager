@@ -1,26 +1,32 @@
+import { A, useLocation } from '@solidjs/router'
 import { cn } from '~/lib/utils'
-import { splitProps, type JSX } from 'solid-js'
+import { createMemo, splitProps, type JSX } from 'solid-js'
 
 interface SidebarItemProps extends JSX.AnchorHTMLAttributes<HTMLAnchorElement> {
   label: string
   icon: JSX.Element
   href: string
-  active?: boolean // 新增：用于控制选中状态
 }
 
 const SidebarItem = (props: SidebarItemProps) => {
-  // 分离出 active 和 children，其余透传给 a 标签
-  const [local, others] = splitProps(props, ['label', 'icon', 'active', 'class'])
+  const location = useLocation()
+  // Active is derived from the current path so the icon/label colours can
+  // react too, not just the anchor's own class.
+  const active = createMemo(() => location.pathname === props.href)
+  // 分离出 label/icon，其余透传给 <A> 标签
+  const [local, others] = splitProps(props, ['label', 'icon', 'href', 'class'])
 
   return (
-    <a
+    <A
+      href={local.href}
+      end
       class={cn(
         // 基础布局与过渡
         'group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ease-in-out outline-none',
         // 字体设置
         'text-sm font-medium',
         // 状态样式 (Active vs Inactive)
-        local.active
+        active()
           ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
           : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100',
         // 聚焦状态 (A11y)
@@ -33,7 +39,7 @@ const SidebarItem = (props: SidebarItemProps) => {
       <span
         class={cn(
           'flex items-center justify-center text-lg transition-colors',
-          local.active
+          active()
             ? 'text-primary-600 dark:text-primary-400'
             : 'text-slate-500 group-hover:text-slate-700 dark:text-slate-400 dark:group-hover:text-slate-200'
         )}
@@ -45,7 +51,7 @@ const SidebarItem = (props: SidebarItemProps) => {
       <span class="hidden md:block whitespace-nowrap opacity-0 md:opacity-100 transition-opacity duration-300">
         {local.label}
       </span>
-    </a>
+    </A>
   )
 }
 
