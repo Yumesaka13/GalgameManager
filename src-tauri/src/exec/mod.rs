@@ -44,6 +44,15 @@ pub struct StartCtx {
     pub env: Option<std::collections::HashMap<String, String>>,
 }
 
+/// Payload emitted with `game://exit/{id}`.
+#[derive(Debug, Clone, Serialize)]
+pub struct GameExitPayload {
+    pub success: bool,
+    /// Foreground (precision-mode-aware) session seconds.  Always zero
+    /// on non-Windows platforms where precision mode is unsupported.
+    pub foreground_secs: u64,
+}
+
 use std::fmt;
 
 impl fmt::Display for StartCtx {

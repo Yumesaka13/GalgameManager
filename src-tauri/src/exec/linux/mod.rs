@@ -221,6 +221,7 @@ pub async fn game_loop(
     let mut interval = time::interval(POLL_INTERVAL);
     let mut last_time_saved = chrono::Utc::now();
     let mut time_counter = TimeDelta::milliseconds(0);
+    let mut total_foreground = TimeDelta::milliseconds(0);
     let precision_mode = CONFIG.lock().settings.launch.precision_mode;
 
     // First tick fires immediately; skip so we don't double-count.
@@ -230,8 +231,13 @@ pub async fn game_loop(
         interval.tick().await;
 
         if !tracker.has_active_processes() {
+            total_foreground += time_counter;
             info!("Game exited: game_id={game_id}");
-            app.emit(&format!("game://exit/{game_id}"), true)?;
+            let payload = super::GameExitPayload {
+                success: true,
+                foreground_secs: total_foreground.num_seconds() as u64,
+            };
+            app.emit(&format!("game://exit/{game_id}"), &payload)?;
             super::update_game_time(&app, game_id, time_counter)?;
             game_exit_sender
                 .send(())
@@ -248,6 +254,7 @@ pub async fn game_loop(
         last_time_saved = now;
 
         if time_counter >= SAVE_INTERVAL {
+            total_foreground += time_counter;
             if let Err(e) = super::update_game_time(&app, game_id, time_counter) {
                 error!("update_game_time failed: {e}");
             }

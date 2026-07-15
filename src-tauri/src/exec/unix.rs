@@ -39,7 +39,11 @@ pub async fn game_loop(
         tokio::select! {
             // Branch A: process exited
             status = child.wait() => {
-                app.emit(&format!("game://exit/{}", game_id), status.is_ok())?;
+                let payload = super::GameExitPayload {
+                    success: status.is_ok(),
+                    foreground_secs: 0,
+                };
+                app.emit(&format!("game://exit/{}", game_id), &payload)?;
                 match status {
                     Ok(s) => info!("Game exited with status: {}", s),
                     Err(e) => error!("Error waiting for game process: {}", e),

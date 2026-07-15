@@ -41,6 +41,11 @@ import GameEditModal from './GameEditModal'
 import { GameItem, GameItemWrapper } from './GameItem'
 import { ArchiveSyncModal } from './SyncModal'
 
+interface GameExitPayload {
+  success: boolean
+  foreground_secs: number
+}
+
 const GamePage = (): JSX.Element => {
   const { config, actions } = useConfig()
   const { t } = useI18n()
@@ -63,10 +68,10 @@ const GamePage = (): JSX.Element => {
     invoke<number[]>('running_game_ids').then(ids => {
       setPlayingIds(ids)
       for (const id of ids) {
-        once<boolean>(`game://exit/${id}`, event => {
-          console.log(`Game ${id} exited, success: ${event.payload}`)
+        once<GameExitPayload>(`game://exit/${id}`, event => {
+          console.log(`Game ${id} exited, success: ${event.payload.success}`)
           setPlayingIds(prev => prev.filter(pid => pid !== id))
-          if (!event.payload) {
+          if (!event.payload.success) {
             const gameName = config.games.find(g => g.id === id)?.name ?? ''
             toast.error(gameName + t('hint.exitAbnormally'))
           }
@@ -227,20 +232,19 @@ const GamePage = (): JSX.Element => {
         toast.success(game.name + t('hint.isRunning'))
       }),
 
-      once<boolean>(`game://exit/${game.id}`, event => {
-        console.log(`Game ${game.id} exited, success: ${event.payload}`)
+      once<GameExitPayload>(`game://exit/${game.id}`, event => {
+        console.log(`Game ${game.id} exited, success: ${event.payload.success}`)
         setPlayingIds(prev => prev.filter(id => id !== game.id))
 
         const startTime = sessionStartTimes.get(game.id)
         if (startTime !== undefined) {
-          const elapsedMs = Date.now() - startTime
-          const duration = formatSessionDuration(elapsedMs)
           sessionStartTimes.delete(game.id)
+          // Use Rust-computed foreground time (respects precision mode)
+          const secs = event.payload.foreground_secs
+          const duration = formatSessionDuration(secs * 1000)
 
-          // Record daily playtime (only for normal exits)
-          if (event.payload) {
+          if (event.payload.success) {
             const today = new Date().toISOString().slice(0, 10)
-            const secs = Math.floor(elapsedMs / 1000)
             invoke('record_daily_playtime', { date: today, secs }).catch(e =>
               console.error('Failed to record daily playtime:', e)
             )
@@ -251,7 +255,7 @@ const GamePage = (): JSX.Element => {
           return
         }
 
-        if (!event.payload) {
+        if (!event.payload.success) {
           toast.error(game.name + t('hint.exitAbnormally'))
         }
       })

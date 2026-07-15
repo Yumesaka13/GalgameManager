@@ -8,14 +8,20 @@ import { Route, Router, useLocation } from '@solidjs/router'
 import { BiRegularBarChartSquare, BiRegularExtension } from 'solid-icons/bi'
 import { CgGames } from 'solid-icons/cg'
 import { IoSettingsOutline } from 'solid-icons/io'
-import {  createEffect,  createMemo,  createSignal,  onMount,  Show,  type Component} 
-from 'solid-js'
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onMount,
+  Show,
+  type Component
+} from 'solid-js'
 import { Toaster } from 'solid-toast'
 import { I18nProvider, useI18n, type Locale } from './i18n'
 import Game from './pages/Game'
-import Statistics from './pages/Statistics'
 import Plugin from './pages/Plugin'
 import Settings from './pages/Settings'
+import Statistics from './pages/Statistics'
 import { Sidebar, SidebarItem } from './Sidebar'
 import { checkAndPullRemote, performAutoUpload, useConfig, useConfigInit } from './store'
 import { useAutoUploadService } from './store/AutoUploadService'
