@@ -25,10 +25,25 @@ const DEFAULT_OPTIONS: TimeDisplayOptions = {
   })
 }
 
+const DEFAULT_INTERVAL = 60000
+
+// A single app-lifetime heartbeat. Every "relative time" memo subscribes to
+// this one tick instead of each game card spinning its own setInterval —
+// otherwise a grid of N visible cards kept N timers alive simultaneously.
+const sharedTick: Accessor<number> = (() => {
+  const [tick, setTick] = createSignal(Date.now())
+  // Intentionally never cleared: one 60s timer for the whole app window.
+  setInterval(() => setTick(Date.now()), DEFAULT_INTERVAL)
+  return tick
+})()
+
 /**
  * Create a memo that re-computes the relative time string on a fixed
  * interval (default 1 minute) so "2 minutes ago" eventually becomes
  * "3 minutes ago" without re-rendering the parent.
+ *
+ * On the default interval the memo subscribes to a process-wide shared
+ * tick; a non-default `intervalMs` spins a dedicated timer instead.
  *
  * Pass `options` to honor `AppearanceConfig.timeDisplay`. When `options`
  * is omitted the function behaves exactly like the old API (uses the
@@ -38,13 +53,18 @@ const DEFAULT_OPTIONS: TimeDisplayOptions = {
 export function createRelativeTime(
   timeTarget: Accessor<string | null>,
   t: TFunc,
-  intervalMs = 60000,
+  intervalMs = DEFAULT_INTERVAL,
   options: TimeDisplayOptions = DEFAULT_OPTIONS
 ) {
-  // Heartbeat that triggers recomputation every `intervalMs`.
-  const [tick, setTick] = createSignal(Date.now())
-  const timer = setInterval(() => setTick(Date.now()), intervalMs)
-  onCleanup(() => clearInterval(timer))
+  let tick: Accessor<number>
+  if (intervalMs === DEFAULT_INTERVAL) {
+    tick = sharedTick
+  } else {
+    const [localTick, setLocalTick] = createSignal(Date.now())
+    const timer = setInterval(() => setLocalTick(Date.now()), intervalMs)
+    onCleanup(() => clearInterval(timer))
+    tick = localTick
+  }
 
   return createMemo(() => {
     // Subscribe to tick so the memo refreshes on the heartbeat.
