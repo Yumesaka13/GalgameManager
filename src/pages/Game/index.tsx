@@ -241,7 +241,9 @@ const GamePage = (): JSX.Element => {
           if (event.payload) {
             const today = new Date().toISOString().slice(0, 10)
             const secs = Math.floor(elapsedMs / 1000)
-            invoke('record_daily_playtime', { date: today, secs }).catch(() => {})
+            invoke('record_daily_playtime', { date: today, secs }).catch(e =>
+              console.error('Failed to record daily playtime:', e)
+            )
             toast.success(`${game.name} ${t('game.sessionDuration', { duration })}`)
           } else {
             toast.error(`${game.name}${t('hint.exitAbnormally')} (${duration})`)
