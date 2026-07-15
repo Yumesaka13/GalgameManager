@@ -56,6 +56,24 @@ const GamePage = (): JSX.Element => {
   const [playingIds, setPlayingIds] = createSignal<number[]>([])
 
   const [sortType, setSortType] = createSignal<SortType>('id')
+  const sessionStartTimes = new Map<number, number>()
+
+  const formatSessionDuration = (durationMs: number) => {
+    const totalSecs = Math.max(0, Math.floor(durationMs / 1000))
+    const hours = Math.floor(totalSecs / 3600)
+    const minutes = Math.floor((totalSecs % 3600) / 60)
+    const seconds = totalSecs % 60
+
+    if (hours > 0) {
+      return `${hours}h${minutes}m`
+    }
+
+    if (minutes > 0) {
+      return `${minutes}m${seconds}s`
+    }
+
+    return `${seconds}s`
+  }
 
   // 避免切换路由后丢失游戏状态
   onMount(() => {
@@ -221,6 +239,7 @@ const GamePage = (): JSX.Element => {
     const [unlistenSpawn, unlistenExit] = await Promise.all([
       once(`game://spawn/${game.id}`, () => {
         console.log(`Game ${game.id} spawned`)
+        sessionStartTimes.set(game.id, Date.now())
         setPlayingIds(prev => [...prev, game.id])
         toast.success(game.name + t('hint.isRunning'))
       }),
@@ -228,6 +247,20 @@ const GamePage = (): JSX.Element => {
       once<boolean>(`game://exit/${game.id}`, event => {
         console.log(`Game ${game.id} exited, success: ${event.payload}`)
         setPlayingIds(prev => prev.filter(id => id !== game.id))
+
+        const startTime = sessionStartTimes.get(game.id)
+        if (startTime !== undefined) {
+          const duration = formatSessionDuration(Date.now() - startTime)
+          sessionStartTimes.delete(game.id)
+          if (event.payload) {
+            toast.success(
+              `${game.name} ${t('game.sessionDuration', { duration })}`
+            )
+          } else {
+            toast.error(`${game.name}${t('hint.exitAbnormally')} (${duration})`)
+          }
+          return
+        }
 
         if (!event.payload) {
           toast.error(game.name + t('hint.exitAbnormally'))

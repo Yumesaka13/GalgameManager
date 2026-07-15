@@ -92,6 +92,7 @@ export const dict = {
       }
     },
     editGame: 'Edit Game Settings',
+    sessionDuration: 'Played for {{duration}}',
     backupButtonHint: 'Backup saves and push to remote',
     openSyncModal: 'Open Sync Panel',
     clickToAdd: 'Click to add',
