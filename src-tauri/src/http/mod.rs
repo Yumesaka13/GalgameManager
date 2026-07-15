@@ -31,7 +31,8 @@ pub static IMAGE_CLIENT: Lazy<Client> = Lazy::new(|| {
         header::HeaderValue::from_static(USER_AGENT),
     );
     Client::builder()
-        .connect_timeout(Duration::from_secs(3))
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(30))
         .default_headers(header_map)
         .build()
         .unwrap()
@@ -133,8 +134,13 @@ pub(crate) fn image_protocol_handler(request: tauri::http::Request<Vec<u8>>) -> 
     }
 }
 
-async fn download_image(url: &str) -> std::result::Result<Vec<u8>, reqwest::Error> {
-    Ok(IMAGE_CLIENT.get(url).send().await?.bytes().await?.to_vec())
+async fn download_image(url: &str) -> Result<Vec<u8>> {
+    // `error_for_status` turns 4xx/5xx responses into `reqwest::Error` (carrying
+    // the status code + url), which `From<reqwest::Error>` renders as a clear
+    // "HTTP <code> <reason> (client/server error) for <url>" message — instead
+    // of silently caching the error body (e.g. a 404 HTML page) as an image.
+    let resp = IMAGE_CLIENT.get(url).send().await?.error_for_status()?;
+    Ok(resp.bytes().await?.to_vec())
 }
 
 #[cfg(test)]
