@@ -44,25 +44,21 @@ const CachedImage: Component<ImageProps> = props => {
     async ([rawUrl, currentHash]) => {
       if (!rawUrl) return null
 
-      try {
-        const resolvedUrl = await resolveVarForDevice(rawUrl, config.devices)
-        // Always call prepare_image to ensure cache exists on this device.
-        // Rust handles fast-path (cache hit) efficiently — just a file exists check.
-        const hash = await invoke<string>('prepare_image', {
-          url: resolvedUrl,
-          hash: currentHash
-        })
+      const resolvedUrl = await resolveVarForDevice(rawUrl, config.devices)
+      // Always call prepare_image to ensure cache exists on this device.
+      // Rust handles fast-path (cache hit) efficiently — just a file exists check.
+      const hash = await invoke<string>('prepare_image', {
+        url: resolvedUrl,
+        hash: currentHash
+      })
 
-        // Notify parent of the resolved hash (may differ from currentHash
-        // if cache was missing and had to be re-computed)
-        if (hash !== currentHash) {
-          props.onHashUpdate?.(hash)
-        }
-
-        return hash
-      } catch (e: any) {
-        throw e
+      // Notify parent of the resolved hash (may differ from currentHash
+      // if cache was missing and had to be re-computed)
+      if (hash !== currentHash) {
+        props.onHashUpdate?.(hash)
       }
+
+      return hash
     }
   )
 

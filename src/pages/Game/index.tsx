@@ -100,9 +100,15 @@ const GamePage = (): JSX.Element => {
     })
   })
 
-  const getRealIndex = (gameId: number) => {
-    return config.games.findIndex(g => g.id === gameId)
-  }
+  // O(1) lookup from game id -> index in config.games, rebuilt only when the
+  // games list changes. Avoids a findIndex linear scan per card per render.
+  const gameIndexById = createMemo(() => {
+    const map = new Map<number, number>()
+    config.games.forEach((g, i) => map.set(g.id, i))
+    return map
+  })
+
+  const getRealIndex = (gameId: number) => gameIndexById().get(gameId) ?? -1
 
   // Duplicate-ID detection is a side effect — keep it out of the (pure)
   // sortedGames memo so it doesn't fire during render or repeat per recompute.
