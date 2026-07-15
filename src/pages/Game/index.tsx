@@ -4,7 +4,7 @@ import { DropArea } from '@components/DropArea'
 import FullScreenMask from '@components/ui/FullScreenMask'
 import { myToast } from '@components/ui/myToast'
 import { invoke } from '@tauri-apps/api/core'
-import { listen, once, type UnlistenFn } from '@tauri-apps/api/event'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { log } from '@utils/log'
 import { fuckBackslash, getParentPath, isAbsolutePath } from '@utils/path'
 import {
@@ -13,10 +13,11 @@ import {
   resolveVarForDevice
 } from '@utils/resolveVar'
 import { getSortType, setSortType as setSortTypeCached } from '@utils/sortTypeCache'
-import { durationToSecs, formatSessionDuration } from '@utils/time'
+import { durationToSecs } from '@utils/time'
 import { useI18n } from '~/i18n'
 import { cn } from '~/lib/utils'
 import { useConfig } from '~/store'
+import { useGameRuntime } from '~/store/gameRuntime'
 import { AiTwotonePlusCircle } from 'solid-icons/ai'
 import {
   TbOutlineClockPlay,
@@ -45,6 +46,9 @@ import { ArchiveSyncModal } from './SyncModal'
 const GamePage = (): JSX.Element => {
   const { config, actions } = useConfig()
   const { t } = useI18n()
+  // Running/backing-up state lives in the global runtime store so it survives
+  // sidebar navigation (the page component is unmounted on route change).
+  const runtime = useGameRuntime()
 
   const [isEditModalOpen, setEditModalOpen] = createSignal(false)
   const [isSyncModalOpen, setSyncModalOpen] = createSignal(false)
@@ -52,28 +56,9 @@ const GamePage = (): JSX.Element => {
   const [editingGameInfo, setEditingGameInfo] = createSignal<Game | null>(null)
   const [editingIndex, setEditingIndex] = createSignal<number | null>(null)
 
-  // 使用数组存储多个正在操作的游戏 ID
-  const [backingUpIds, setBackingUpIds] = createSignal<number[]>([])
-  const [playingIds, setPlayingIds] = createSignal<number[]>([])
-
   const [sortType, setSortType] = createSignal<SortType>('id')
-  const sessionStartTimes = new Map<number, number>()
 
-  // 避免切换路由后丢失游戏状态
   onMount(() => {
-    invoke<number[]>('running_game_ids').then(ids => {
-      setPlayingIds(ids)
-      for (const id of ids) {
-        once<boolean>(`game://exit/${id}`, event => {
-          console.log(`Game ${id} exited, success: ${event.payload}`)
-          setPlayingIds(prev => prev.filter(pid => pid !== id))
-          if (!event.payload) {
-            const gameName = config.games.find(g => g.id === id)?.name ?? ''
-            toast.error(gameName + t('hint.exitAbnormally'))
-          }
-        })
-      }
-    })
     getSortType().then(setSortType)
 
     // Track the grid scroll container width to recompute the responsive column
@@ -216,64 +201,12 @@ const GamePage = (): JSX.Element => {
     actions.replaceGame(index, game)
   }
 
-  // 游戏启动逻辑
+  // 游戏启动逻辑 — delegated to the global runtime store so listeners and
+  // session timing survive sidebar navigation.
   const handleStart = async (index: number) => {
     const game = config.games[index]
     if (!game) return
-
-    // 如果已经在运行中，阻止重复点击
-    if (playingIds().includes(game.id)) return
-
-    // 1. 使用 once 注册单次监听器
-    // 仍然获取 unlisten 函数，仅用于在 invoke 报错时手动清理
-    const [unlistenSpawn, unlistenExit] = await Promise.all([
-      once(`game://spawn/${game.id}`, () => {
-        console.log(`Game ${game.id} spawned`)
-        sessionStartTimes.set(game.id, Date.now())
-        setPlayingIds(prev => [...prev, game.id])
-        toast.success(game.name + t('hint.isRunning'))
-      }),
-
-      once<boolean>(`game://exit/${game.id}`, event => {
-        console.log(`Game ${game.id} exited, success: ${event.payload}`)
-        setPlayingIds(prev => prev.filter(id => id !== game.id))
-
-        const startTime = sessionStartTimes.get(game.id)
-        if (startTime !== undefined) {
-          const duration = formatSessionDuration(Date.now() - startTime)
-          sessionStartTimes.delete(game.id)
-          if (event.payload) {
-            toast.success(`${game.name} ${t('game.sessionDuration', { duration })}`)
-          } else {
-            toast.error(`${game.name}${t('hint.exitAbnormally')} (${duration})`)
-          }
-          return
-        }
-
-        if (!event.payload) {
-          toast.error(game.name + t('hint.exitAbnormally'))
-        }
-      })
-    ])
-
-    try {
-      // 2. 调用后端启动命令
-      await invoke('exec', { gameId: game.id })
-    } catch (error) {
-      // Distinguish plugin command failures from game launch failures
-      const isPluginError = typeof error === 'string' && error.includes('Plugin ')
-      if (isPluginError) {
-        log.error(`Plugin error for game ${game.name}: ${error}`)
-        toast.error(error)
-      } else {
-        log.error(`Failed to start game ${game.name}: ${error}`)
-        toast.error(game.name + t('hint.failToStart') + error)
-      }
-
-      // 3. 如果启动指令本身失败，手动清理刚才注册的监听器
-      unlistenSpawn()
-      unlistenExit()
-    }
+    await runtime.launch(game, t)
   }
 
   const handleSave = (game: Game) => {
@@ -381,13 +314,13 @@ const GamePage = (): JSX.Element => {
     }
 
     // 检查该游戏是否正在备份中
-    if (backingUpIds().includes(game.id)) {
+    if (runtime.isBackingUp(game.id)) {
       log.warn('Game is already backing up')
       return
     }
 
     // 添加到备份队列
-    setBackingUpIds(prev => [...prev, game.id])
+    runtime.markBackingUp(game.id)
 
     const toastId = toast.loading(t('hint.archiving') + game.name + '...')
     let unlistenUploadError: UnlistenFn | undefined
@@ -423,7 +356,7 @@ const GamePage = (): JSX.Element => {
         unlistenUploadError()
       }
       // 从备份队列中移除
-      setBackingUpIds(prev => prev.filter(id => id !== game.id))
+      runtime.unmarkBackingUp(game.id)
     }
   }
 
@@ -490,8 +423,8 @@ const GamePage = (): JSX.Element => {
                           onContextMenuAction={action =>
                             handleContextMenuAction(game.id, action)
                           }
-                          isBackingUp={backingUpIds().includes(game.id)}
-                          isPlaying={playingIds().includes(game.id)}
+                          isBackingUp={runtime.isBackingUp(game.id)}
+                          isPlaying={runtime.isPlaying(game.id)}
                         />
                       )
                     }}

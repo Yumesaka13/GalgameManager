@@ -17,6 +17,7 @@ import Settings from './pages/Settings'
 import { Sidebar, SidebarItem } from './Sidebar'
 import { checkAndPullRemote, performAutoUpload, useConfig, useConfigInit } from './store'
 import { useAutoUploadService } from './store/AutoUploadService'
+import { initGameRuntime } from './store/gameRuntime'
 
 const MainLayout: Component = () => {
   const { config } = useConfig()
@@ -25,6 +26,10 @@ const MainLayout: Component = () => {
   const [isServiceReady, setServiceReady] = createSignal(false)
 
   useConfigInit(t)
+
+  // Recover running-game state once at startup; listeners live for the app
+  // lifetime in the global runtime store.
+  initGameRuntime(t)
 
   checkAndPullRemote(t).finally(() => {
     setServiceReady(true)
