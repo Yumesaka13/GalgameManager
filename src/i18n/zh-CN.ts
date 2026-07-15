@@ -312,6 +312,7 @@ export const dict: DeepPartial<RawDictionary> = {
     }
   },
   hint: {
+    dragFileHere: '拖拽可执行文件到此处以添加游戏',
     appliedNewConfig: '已应用远端最新配置',
     archiveExists: '存档已存在',
     archiveFailed: '归档失败: ',

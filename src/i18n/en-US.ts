@@ -318,6 +318,7 @@ export const dict = {
     }
   },
   hint: {
+    dragFileHere: 'Drag executable file here to add game',
     appliedNewConfig: 'Applied remote configuration',
     archiveExists: 'Archive already exists',
     archiveFailed: 'Archive failed: ',
