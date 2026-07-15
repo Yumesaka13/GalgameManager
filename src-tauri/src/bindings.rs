@@ -330,3 +330,27 @@ pub fn open_game_dir(game_id: u32) -> Result<()> {
     opener::open(dir).map_err(Error::Open)?;
     Ok(())
 }
+
+// region daily playtime
+
+#[tauri::command]
+pub fn get_daily_playtime() -> std::collections::HashMap<String, u64> {
+    CONFIG.lock().daily_playtime.clone()
+}
+
+#[tauri::command]
+pub fn record_daily_playtime(date: String, secs: u64) -> Result<()> {
+    let mut lock = CONFIG.lock();
+    let entry = lock.daily_playtime.entry(date).or_insert(0);
+    *entry += secs;
+    lock.store()?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn clear_daily_playtime() -> Result<()> {
+    let mut lock = CONFIG.lock();
+    lock.daily_playtime.clear();
+    lock.store()?;
+    Ok(())
+}

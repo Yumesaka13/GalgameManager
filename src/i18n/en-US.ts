@@ -1,6 +1,7 @@
 export const dict = {
   sidebar: {
     game: 'Game',
+    statistics: 'Statistics',
     plugin: 'Plugin',
     settings: 'Settings'
   },
@@ -296,7 +297,12 @@ export const dict = {
     launch: {
       timestat: 'Time Stat',
       precisionMode: 'Precision Mode',
-      precisionModeDesc: 'Only count time spent in foreground when window is focused.'
+      precisionModeDesc: 'Only count time spent in foreground when window is focused.',
+      dailyStat: 'Daily Playtime Statistics',
+      dailyStatDesc:
+        'Track daily playtime and show a statistics chart in the sidebar. Disabling will delete all historical data.',
+      clearDailyStat: 'Clear All Data',
+      clearDailyStatDesc: 'Delete all historical daily playtime records.'
     },
     device: {
       deviceIdentity: 'Device Identity',
@@ -379,6 +385,15 @@ export const dict = {
     resolveExeFailed: 'Failed to resolve game path (possibly an undefined variable)',
     selectImageFailed: 'Failed to select image',
     unknownVar: 'Unknown variable(s): '
+  },
+  stats: {
+    self: 'Statistics',
+    dailyPlaytime: 'Daily Playtime',
+    noData: 'No playtime data yet. Start playing a game to see your statistics!',
+    hours: 'h',
+    minutes: 'm',
+    totalLabel: 'Total',
+    last7Days: 'Last 7 Days'
   }
 }
 

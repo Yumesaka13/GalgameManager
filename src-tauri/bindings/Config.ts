@@ -19,5 +19,9 @@ export type Config = {
   games: Array<Game>;
   devices: Array<Device>;
   settings: Settings;
+  /**
+   * Daily playtime statistics: date (YYYY-MM-DD) -> total seconds played
+   */
+  dailyPlaytime: { [key in string]: bigint };
   pluginMetadatas: PluginMetadatas;
 };

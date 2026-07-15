@@ -233,9 +233,15 @@ const GamePage = (): JSX.Element => {
 
         const startTime = sessionStartTimes.get(game.id)
         if (startTime !== undefined) {
-          const duration = formatSessionDuration(Date.now() - startTime)
+          const elapsedMs = Date.now() - startTime
+          const duration = formatSessionDuration(elapsedMs)
           sessionStartTimes.delete(game.id)
+
+          // Record daily playtime (only for normal exits)
           if (event.payload) {
+            const today = new Date().toISOString().slice(0, 10)
+            const secs = Math.floor(elapsedMs / 1000)
+            invoke('record_daily_playtime', { date: today, secs }).catch(() => {})
             toast.success(`${game.name} ${t('game.sessionDuration', { duration })}`)
           } else {
             toast.error(`${game.name}${t('hint.exitAbnormally')} (${duration})`)

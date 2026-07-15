@@ -2,7 +2,7 @@ pub mod device;
 mod migration;
 pub mod settings;
 
-use std::{fs, path::PathBuf, sync::LazyLock as Lazy};
+use std::{collections::HashMap, fs, path::PathBuf, sync::LazyLock as Lazy};
 
 use chrono::{DateTime, Duration, Utc};
 use config_file2::{LoadConfigFile, Storable};
@@ -77,6 +77,9 @@ pub struct Config {
     pub games: Vec<Game>,
     pub devices: Vec<Device>,
     pub settings: Settings,
+    /// Daily playtime statistics: date (YYYY-MM-DD) -> total seconds played
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub daily_playtime: HashMap<String, u64>,
     #[serde(deserialize_with = "deserialize_metadatas_fallback")]
     pub plugin_metadatas: PluginMetadatas,
 }

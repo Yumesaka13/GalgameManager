@@ -190,12 +190,15 @@ impl Default for S3Config {
 pub struct LaunchConfig {
     /// 统计游玩时长启用精确模式
     pub precision_mode: bool,
+    /// Enable daily playtime statistics
+    pub daily_stat: bool,
 }
 
 impl Default for LaunchConfig {
     fn default() -> Self {
         Self {
             precision_mode: true,
+            daily_stat: true,
         }
     }
 }

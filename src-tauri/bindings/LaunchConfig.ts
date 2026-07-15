@@ -5,4 +5,8 @@ export type LaunchConfig = {
    * 统计游玩时长启用精确模式
    */
   precisionMode: boolean;
+  /**
+   * 统计每日游玩时长开关
+   */
+  dailyStat: boolean;
 };

@@ -13,6 +13,7 @@ impl Default for Config {
             games: Default::default(),
             devices: Default::default(),
             settings: Default::default(),
+            daily_playtime: Default::default(),
             plugin_metadatas: Default::default(),
         }
     }
@@ -76,6 +77,7 @@ mod tests {
             games: vec![],
             devices: vec![],
             settings: Default::default(),
+            daily_playtime: Default::default(),
             plugin_metadatas: Default::default(),
         }
     }
