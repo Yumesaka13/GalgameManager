@@ -49,6 +49,28 @@ const displayDuration = (d: [number, number]) => {
   return `${form.h}h${form.m}m`
 }
 
+/** Format a milliseconds duration into a readable string:
+ *  - >= 1h:  "XhYm"
+ *  - >= 1m:  "XmYs"
+ *  - < 1m:   "Xs"
+ */
+export const formatSessionDuration = (durationMs: number): string => {
+  const totalSecs = Math.max(0, Math.floor(durationMs / 1000))
+  const hours = Math.floor(totalSecs / 3600)
+  const minutes = Math.floor((totalSecs % 3600) / 60)
+  const seconds = totalSecs % 60
+
+  if (hours > 0) {
+    return `${hours}h${minutes}m`
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m${seconds}s`
+  }
+
+  return `${seconds}s`
+}
+
 // ── relative time ───────────────────────────────────────────────────────────
 
 /**

@@ -96,6 +96,7 @@ export const dict: DeepPartial<RawDictionary> = {
     lastPlayedLabel: '上次游玩：',
     totalPlayTime: '总游玩时长',
     backupButtonHint: '备份存档并上传至远程',
+    sessionDuration: '游玩时长：{{duration}}',
     openSyncModal: '打开同步面板',
     clickToAdd: '点击添加',
     self: '游戏列表',

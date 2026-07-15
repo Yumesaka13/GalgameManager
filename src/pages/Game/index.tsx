@@ -13,7 +13,7 @@ import {
   resolveVarForDevice
 } from '@utils/resolveVar'
 import { getSortType, setSortType as setSortTypeCached } from '@utils/sortTypeCache'
-import { durationToSecs } from '@utils/time'
+import { durationToSecs, formatSessionDuration } from '@utils/time'
 import { useI18n } from '~/i18n'
 import { cn } from '~/lib/utils'
 import { useConfig } from '~/store'
@@ -56,6 +56,7 @@ const GamePage = (): JSX.Element => {
   const [playingIds, setPlayingIds] = createSignal<number[]>([])
 
   const [sortType, setSortType] = createSignal<SortType>('id')
+  const sessionStartTimes = new Map<number, number>()
 
   // 避免切换路由后丢失游戏状态
   onMount(() => {
@@ -221,6 +222,7 @@ const GamePage = (): JSX.Element => {
     const [unlistenSpawn, unlistenExit] = await Promise.all([
       once(`game://spawn/${game.id}`, () => {
         console.log(`Game ${game.id} spawned`)
+        sessionStartTimes.set(game.id, Date.now())
         setPlayingIds(prev => [...prev, game.id])
         toast.success(game.name + t('hint.isRunning'))
       }),
@@ -228,6 +230,18 @@ const GamePage = (): JSX.Element => {
       once<boolean>(`game://exit/${game.id}`, event => {
         console.log(`Game ${game.id} exited, success: ${event.payload}`)
         setPlayingIds(prev => prev.filter(id => id !== game.id))
+
+        const startTime = sessionStartTimes.get(game.id)
+        if (startTime !== undefined) {
+          const duration = formatSessionDuration(Date.now() - startTime)
+          sessionStartTimes.delete(game.id)
+          if (event.payload) {
+            toast.success(`${game.name} ${t('game.sessionDuration', { duration })}`)
+          } else {
+            toast.error(`${game.name}${t('hint.exitAbnormally')} (${duration})`)
+          }
+          return
+        }
 
         if (!event.payload) {
           toast.error(game.name + t('hint.exitAbnormally'))
