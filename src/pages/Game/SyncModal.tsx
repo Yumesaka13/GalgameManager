@@ -313,8 +313,8 @@ export function ArchiveSyncModal(props: ArchiveSyncModalProps) {
 
       // 只有成功时才关闭编辑框
       setEditingName(null)
-    } catch (e: any) {
-      toast.error(t('hint.renameFailed') + e, { id: toastId })
+    } catch (e) {
+      toast.error(t('hint.renameFailed') + String(e), { id: toastId })
       // 注意：发生错误时，不设置 setEditingName(null)，保留用户输入以便修改重试
     } finally {
       // 无论成功失败，最后释放锁

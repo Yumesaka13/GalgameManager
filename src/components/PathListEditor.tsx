@@ -42,7 +42,7 @@ interface PathListEditorProps {
 }
 
 interface ActionButtonProps {
-  icon: Component<any>
+  icon: Component<{ class?: string }>
   label: string
   onClick: () => void
 }

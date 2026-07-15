@@ -34,6 +34,7 @@ import {
   onMount,
   Show,
   type Accessor,
+  type Component,
   type JSX
 } from 'solid-js'
 import { unwrap } from 'solid-js/store'
@@ -496,29 +497,30 @@ const SortOptions = (props: {
   class?: string
 }): JSX.Element => {
   const { t } = useI18n()
-  const sortOptions: Accessor<{ type: SortType; icon: any; label: string }[]> =
-    createMemo(() => [
-      {
-        type: 'id' as SortType,
-        icon: TbOutlineSortAscendingNumbers,
-        label: t('game.sortType.id')
-      },
-      {
-        type: 'name' as SortType,
-        icon: TbOutlineSortAscendingLetters,
-        label: t('game.sortType.name')
-      },
-      {
-        type: 'lastPlayed' as SortType,
-        icon: TbOutlineClockPlay,
-        label: t('game.sortType.lastPlayed')
-      },
-      {
-        type: 'playTime' as SortType,
-        icon: TbOutlineHourglassHigh,
-        label: t('game.sortType.playTime')
-      }
-    ])
+  const sortOptions: Accessor<
+    { type: SortType; icon: Component<{ class?: string }>; label: string }[]
+  > = createMemo(() => [
+    {
+      type: 'id' as SortType,
+      icon: TbOutlineSortAscendingNumbers,
+      label: t('game.sortType.id')
+    },
+    {
+      type: 'name' as SortType,
+      icon: TbOutlineSortAscendingLetters,
+      label: t('game.sortType.name')
+    },
+    {
+      type: 'lastPlayed' as SortType,
+      icon: TbOutlineClockPlay,
+      label: t('game.sortType.lastPlayed')
+    },
+    {
+      type: 'playTime' as SortType,
+      icon: TbOutlineHourglassHigh,
+      label: t('game.sortType.playTime')
+    }
+  ])
 
   return (
     <div class={cn('flex bg-gray-200 dark:bg-gray-900 rounded-md', props.class)}>
