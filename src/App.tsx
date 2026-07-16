@@ -5,15 +5,16 @@ import {
   useColorMode
 } from '@kobalte/core'
 import { Navigate, Route, Router } from '@solidjs/router'
-import { BiRegularExtension } from 'solid-icons/bi'
+import { BiRegularBarChartSquare, BiRegularExtension } from 'solid-icons/bi'
 import { CgGames } from 'solid-icons/cg'
 import { IoSettingsOutline } from 'solid-icons/io'
-import { createEffect, createSignal, type Component, type JSX } from 'solid-js'
+import { createEffect, createSignal, Show, type Component, type JSX } from 'solid-js'
 import { Toaster } from 'solid-toast'
 import { I18nProvider, useI18n, type Locale } from './i18n'
 import Game from './pages/Game'
 import Plugin from './pages/Plugin'
 import Settings from './pages/Settings'
+import Statistics from './pages/Statistics'
 import { Sidebar, SidebarItem } from './Sidebar'
 import { checkAndPullRemote, performAutoUpload, useConfig, useConfigInit } from './store'
 import { useAutoUploadService } from './store/AutoUploadService'
@@ -68,6 +69,13 @@ const MainLayout: Component<{ children?: JSX.Element }> = props => {
           icon={<CgGames class="w-6 h-6" />}
           href="/Game"
         />
+        <Show when={config.settings.launch.dailyStat}>
+          <SidebarItem
+            label={t('sidebar.statistics')}
+            icon={<BiRegularBarChartSquare class="w-6 h-6" />}
+            href="/Statistics"
+          />
+        </Show>
         <SidebarItem
           label={t('sidebar.plugin')}
           icon={<BiRegularExtension class="w-6 h-6" />}
@@ -99,6 +107,7 @@ const App: Component = () => {
           <Router root={MainLayout}>
             <Route path="/Game" component={Game} />
             <Route path="/" component={() => <Navigate href="/Game" />} />
+            <Route path="/Statistics" component={Statistics} />
             <Route path="/Plugin" component={Plugin} />
             <Route path="/Settings" component={Settings} />
           </Router>

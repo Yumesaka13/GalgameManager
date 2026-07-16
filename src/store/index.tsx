@@ -97,7 +97,8 @@ const DEFAULT_CONFIG: Config = {
       }
     },
     launch: {
-      precisionMode: true
+      precisionMode: true,
+      dailyStat: true
     },
     autoSyncInterval: 1200,
     syncIoTimeoutSecs: 60,
@@ -437,7 +438,9 @@ export const useConfig = () => {
             const index = state.devices.findIndex(d => d.uid === uid)
             if (index !== -1) {
               state.devices[index] = deviceUnwrap
-            } else {
+            }
+            // 如果没有找到，则添加
+            else {
               state.devices.push(deviceUnwrap)
             }
           })

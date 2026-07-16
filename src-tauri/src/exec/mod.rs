@@ -44,6 +44,14 @@ pub struct StartCtx {
     pub env: Option<std::collections::HashMap<String, String>>,
 }
 
+/// Payload emitted with `game://exit/{id}`.
+#[derive(Debug, Clone, Serialize)]
+pub struct GameExitPayload {
+    pub success: bool,
+    /// Session duration in seconds (respects precision mode when enabled).
+    pub session_secs: u64,
+}
+
 use std::fmt;
 
 impl fmt::Display for StartCtx {
@@ -331,9 +339,26 @@ pub async fn launch_game_with_plugins(app: AppHandle, game_id: u32) -> Result<()
 
 fn update_game_time(app: &tauri::AppHandle, game_id: u32, dur: chrono::TimeDelta) -> Result<()> {
     let mut lock = CONFIG.lock();
+    // Read the toggle before mutably borrowing a game to avoid a borrow clash
+    // (settings and games both live on the same Config).
+    let daily_stat = lock.settings.launch.daily_stat;
     let game = lock.get_game_by_id_mut(game_id)?;
     game.use_time += dur;
     game.last_played_time = Some(chrono::Utc::now());
+    // Daily playtime is accumulated here so it is flushed to disk together
+    // with use_time on every periodic save. A crash therefore loses at most
+    // one SAVE_INTERVAL window for BOTH counters, instead of the whole daily
+    // session (which used to be recorded only on graceful exit).
+    if daily_stat {
+        let secs = dur.num_seconds().max(0) as u32;
+        if secs > 0 {
+            // Bucket by the user's *local* calendar day, not UTC, so an
+            // evening session lands on "today" from the player's viewpoint.
+            // The frontend chart uses the same local-day key.
+            let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+            *game.daily_playtime.entry(today).or_insert(0) += secs;
+        }
+    }
     log::info!(
         "update use_time: game_id={}, use_time updated to {}",
         game_id,

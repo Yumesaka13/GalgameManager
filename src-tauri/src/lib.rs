@@ -66,6 +66,8 @@ pub fn run() {
             running_game_ids,
             open_game_dir,
             paths_exist,
+            get_daily_playtime,
+            clear_all_daily_playtime,
         ])
         .register_uri_scheme_protocol("galimg", |_, request| {
             crate::http::image_protocol_handler(request)

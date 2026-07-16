@@ -15,5 +15,11 @@ export type Game = {
   useTime: [number, number];
   lastPlayedTime: string | null;
   lastUploadTime: string | null;
+  /**
+   * Daily playtime owned by this game: date (YYYY-MM-DD) -> seconds played.
+   * Lives on the game (not the Config root) so it migrates, syncs and is
+   * cleared together with the rest of the game's state.
+   */
+  dailyPlaytime?: { [key in string]: number };
   plugins?: Array<PluginInstance>;
 };
