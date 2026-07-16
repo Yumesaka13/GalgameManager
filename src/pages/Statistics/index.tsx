@@ -12,7 +12,15 @@ import {
   LinearScale,
   Tooltip
 } from 'chart.js'
-import { createEffect, createMemo, createSignal, onCleanup, onMount, Show, type Component } from 'solid-js'
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  onMount,
+  Show,
+  type Component
+} from 'solid-js'
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip)
 
@@ -144,9 +152,7 @@ const StatisticsPage: Component = () => {
             display: ids.length > 1,
             position: 'bottom',
             labels: {
-              color: colorMode() === 'dark'
-                ? '#9ca3af'
-                : '#6b7280',
+              color: colorMode() === 'dark' ? '#9ca3af' : '#6b7280',
               boxWidth: 12,
               padding: 8
             }
@@ -181,9 +187,7 @@ const StatisticsPage: Component = () => {
             stacked: true,
             grid: { display: false },
             ticks: {
-              color: colorMode() === 'dark'
-                ? '#9ca3af'
-                : '#6b7280'
+              color: colorMode() === 'dark' ? '#9ca3af' : '#6b7280'
             }
           },
           y: {
@@ -191,14 +195,11 @@ const StatisticsPage: Component = () => {
             beginAtZero: true,
             ticks: {
               callback: val => `${val} ${t('unit.minute')}`,
-              color: colorMode() === 'dark'
-                ? '#9ca3af'
-                : '#6b7280'
+              color: colorMode() === 'dark' ? '#9ca3af' : '#6b7280'
             },
             grid: {
-              color: colorMode() === 'dark'
-                ? 'rgba(75,85,99,0.3)'
-                : 'rgba(209,213,219,0.5)'
+              color:
+                colorMode() === 'dark' ? 'rgba(75,85,99,0.3)' : 'rgba(209,213,219,0.5)'
             }
           }
         }
@@ -245,8 +246,7 @@ const StatisticsPage: Component = () => {
               {t('stats.last7Days')}
             </span>
             <span class="text-lg font-bold text-blue-800 dark:text-blue-200">
-              {t('stats.totalLabel')}:{' '}
-              {weekTotalLabel()}
+              {t('stats.totalLabel')}: {weekTotalLabel()}
             </span>
           </div>
 

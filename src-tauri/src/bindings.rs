@@ -336,7 +336,8 @@ pub fn open_game_dir(game_id: u32) -> Result<()> {
 /// Returns per-game daily playtime: game_id -> date -> seconds.
 /// Aggregated from each game's own `daily_playtime` map.
 #[tauri::command]
-pub fn get_daily_playtime() -> std::collections::HashMap<u32, std::collections::HashMap<String, u32>> {
+pub fn get_daily_playtime() -> std::collections::HashMap<u32, std::collections::HashMap<String, u32>>
+{
     let mut out = std::collections::HashMap::new();
     for game in &CONFIG.lock().games {
         if !game.daily_playtime.is_empty() {

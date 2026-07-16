@@ -8,13 +8,7 @@ import { Navigate, Route, Router } from '@solidjs/router'
 import { BiRegularBarChartSquare, BiRegularExtension } from 'solid-icons/bi'
 import { CgGames } from 'solid-icons/cg'
 import { IoSettingsOutline } from 'solid-icons/io'
-import {
-  createEffect,
-  createSignal,
-  Show,
-  type Component,
-  type JSX
-} from 'solid-js'
+import { createEffect, createSignal, Show, type Component, type JSX } from 'solid-js'
 import { Toaster } from 'solid-toast'
 import { I18nProvider, useI18n, type Locale } from './i18n'
 import Game from './pages/Game'
