@@ -69,6 +69,7 @@ pub fn run() {
             get_daily_playtime,
             record_daily_playtime,
             clear_daily_playtime,
+            clear_all_daily_playtime,
         ])
         .register_uri_scheme_protocol("galimg", |_, request| {
             crate::http::image_protocol_handler(request)

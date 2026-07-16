@@ -391,8 +391,6 @@ export const dict = {
     self: 'Statistics',
     dailyPlaytime: 'Daily Playtime',
     noData: 'No playtime data yet. Start playing a game to see your statistics!',
-    hours: 'h',
-    minutes: 'm',
     totalLabel: 'Total',
     last7Days: 'Last 7 Days'
   }

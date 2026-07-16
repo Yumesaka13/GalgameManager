@@ -39,9 +39,10 @@ pub async fn game_loop(
         tokio::select! {
             // Branch A: process exited
             status = child.wait() => {
+                let elapsed = chrono::Utc::now() - last_time_saved;
                 let payload = super::GameExitPayload {
                     success: status.is_ok(),
-                    foreground_secs: 0,
+                    session_secs: elapsed.num_seconds() as u64,
                 };
                 app.emit(&format!("game://exit/{}", game_id), &payload)?;
                 match status {

@@ -48,9 +48,8 @@ pub struct StartCtx {
 #[derive(Debug, Clone, Serialize)]
 pub struct GameExitPayload {
     pub success: bool,
-    /// Foreground (precision-mode-aware) session seconds.  Always zero
-    /// on non-Windows platforms where precision mode is unsupported.
-    pub foreground_secs: u64,
+    /// Session duration in seconds (respects precision mode when enabled).
+    pub session_secs: u64,
 }
 
 use std::fmt;

@@ -235,7 +235,7 @@ pub async fn game_loop(
             info!("Game exited: game_id={game_id}");
             let payload = super::GameExitPayload {
                 success: true,
-                foreground_secs: total_foreground.num_seconds() as u64,
+                session_secs: total_foreground.num_seconds() as u64,
             };
             app.emit(&format!("game://exit/{game_id}"), &payload)?;
             super::update_game_time(&app, game_id, time_counter)?;

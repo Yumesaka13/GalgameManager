@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Deserializer};
 
 use super::{Config, settings::LocalConfig};
@@ -56,7 +58,42 @@ pub fn migrate(mut config: Config) -> Config {
         }
         config.db_version = 1;
     }
+    // Migrate old flat daily_playtime { date -> secs } to per-game format.
+    if config.db_version < 2 {
+        // Already handled by deserialize_daily_playtime_compat at load time;
+        // just bump the version so we don't re-run.
+        config.db_version = 2;
+    }
     config
+}
+
+/// Custom deserializer that accepts both the old flat format
+/// `{ "2026-07-15" = 3600 }` and the new per-game format
+/// `{ 1 = { "2026-07-15" = 3600 } }`.
+pub fn deserialize_daily_playtime_compat<'de, D>(
+    deserializer: D,
+) -> Result<HashMap<u32, HashMap<String, u32>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum DailyPlaytimeCompat {
+        New(HashMap<u32, HashMap<String, u32>>),
+        Old(HashMap<String, u32>),
+    }
+
+    match DailyPlaytimeCompat::deserialize(deserializer)? {
+        DailyPlaytimeCompat::New(v) => Ok(v),
+        DailyPlaytimeCompat::Old(flat) => {
+            // Migrate: wrap old global data under game_id 0.
+            let mut map = HashMap::new();
+            if !flat.is_empty() {
+                map.insert(0, flat);
+            }
+            Ok(map)
+        }
+    }
 }
 
 #[cfg(test)]

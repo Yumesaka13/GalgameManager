@@ -98,12 +98,7 @@ const MainLayout: Component<{ children?: JSX.Element }> = props => {
 
       {/* 让页面内容自己处理 overflow 滚动 */}
       <div class="flex-1 min-w-0 p-0 dark:bg-slate-800 dark:text-gray-400 h-full overflow-hidden relative transition-colors duration-200">
-        <Router>
-          <Route path={['/Game', '/', '']} component={Game} />
-          <Route path="/Statistics" component={Statistics} />
-          <Route path="/Plugin" component={Plugin} />
-          <Route path="/Settings" component={Settings} />
-        </Router>
+        {props.children}
       </div>
     </>
   )
@@ -120,6 +115,7 @@ const App: Component = () => {
           <Router root={MainLayout}>
             <Route path="/Game" component={Game} />
             <Route path="/" component={() => <Navigate href="/Game" />} />
+            <Route path="/Statistics" component={Statistics} />
             <Route path="/Plugin" component={Plugin} />
             <Route path="/Settings" component={Settings} />
           </Router>

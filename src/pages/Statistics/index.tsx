@@ -35,8 +35,16 @@ const StatisticsPage: Component = () => {
 
   const fetchData = async () => {
     try {
-      const data = await invoke<Record<string, number>>('get_daily_playtime')
-      setPlaytimeData(data)
+      // per-game: game_id -> date -> seconds; sum across games
+      const data =
+        await invoke<Record<number, Record<string, number>>>('get_daily_playtime')
+      const summed: Record<string, number> = {}
+      for (const gameEntries of Object.values(data)) {
+        for (const [date, secs] of Object.entries(gameEntries)) {
+          summed[date] = (summed[date] ?? 0) + secs
+        }
+      }
+      setPlaytimeData(summed)
     } catch (e) {
       console.error('Failed to fetch daily playtime:', e)
     }
@@ -162,8 +170,8 @@ const StatisticsPage: Component = () => {
             <span class="text-lg font-bold text-blue-800 dark:text-blue-200">
               {t('stats.totalLabel')}:{' '}
               {totalMinutes() >= 60
-                ? `${Math.floor(totalMinutes() / 60)}${t('stats.hours')} ${Math.round(totalMinutes() % 60)}${t('stats.minutes')}`
-                : `${Math.round(totalMinutes())}${t('stats.minutes')}`}
+                ? `${Math.floor(totalMinutes() / 60)}${t('unit.hour')} ${Math.round(totalMinutes() % 60)}${t('unit.minute')}`
+                : `${Math.round(totalMinutes())}${t('unit.minute')}`}
             </span>
           </div>
 

@@ -1,23 +1,44 @@
 // src/pages/settings/AppearanceTab.tsx
 import { type ThemeMode } from '@bindings/ThemeMode'
+import { myToast } from '@components/ui/myToast'
 import { Select, SettingRow, SettingSection, SwitchToggle } from '@components/ui/settings'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '~/i18n'
 import { useConfig } from '~/store'
 import { type Component } from 'solid-js'
-import toast from 'solid-toast'
 
 export const LaunchTab: Component = () => {
   const { config, actions } = useConfig()
   const { t } = useI18n()
 
-  const handleClearDailyStat = async () => {
-    try {
-      await invoke('clear_daily_playtime')
-      toast.success(t('hint.syncSuccess'))
-    } catch (e) {
-      toast.error(String(e))
-    }
+  const handleClearDailyStat = () => {
+    myToast({
+      variant: 'warning',
+      title: t('settings.launch.clearDailyStat'),
+      message: t('settings.launch.clearDailyStatDesc'),
+      actions: [
+        {
+          label: t('ui.cancel'),
+          variant: 'secondary',
+          onClick: () => {}
+        },
+        {
+          label: t('ui.confirm'),
+          variant: 'danger',
+          onClick: async () => {
+            try {
+              await invoke('clear_all_daily_playtime')
+              myToast({
+                variant: 'success',
+                message: t('settings.launch.clearDailyStat')
+              })
+            } catch (e) {
+              myToast({ variant: 'error', message: String(e) })
+            }
+          }
+        }
+      ]
+    })
   }
 
   return (

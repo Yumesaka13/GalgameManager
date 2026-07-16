@@ -4,7 +4,7 @@ import { DropArea } from '@components/DropArea'
 import FullScreenMask from '@components/ui/FullScreenMask'
 import { myToast } from '@components/ui/myToast'
 import { invoke } from '@tauri-apps/api/core'
-import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { listen, once, type UnlistenFn } from '@tauri-apps/api/event'
 import { log } from '@utils/log'
 import { fuckBackslash, getParentPath, isAbsolutePath } from '@utils/path'
 import {
@@ -13,7 +13,7 @@ import {
   resolveVarForDevice
 } from '@utils/resolveVar'
 import { getSortType, setSortType as setSortTypeCached } from '@utils/sortTypeCache'
-import { durationToSecs } from '@utils/time'
+import { durationToSecs, formatSessionDuration } from '@utils/time'
 import { useI18n } from '~/i18n'
 import { cn } from '~/lib/utils'
 import { useConfig } from '~/store'
@@ -45,7 +45,7 @@ import { ArchiveSyncModal } from './SyncModal'
 
 interface GameExitPayload {
   success: boolean
-  foreground_secs: number
+  session_secs: number
 }
 
 const GamePage = (): JSX.Element => {
@@ -62,6 +62,8 @@ const GamePage = (): JSX.Element => {
   const [editingIndex, setEditingIndex] = createSignal<number | null>(null)
 
   const [sortType, setSortType] = createSignal<SortType>('id')
+  const sessionStartTimes = new Map<number, number>()
+  const [playingIds, setPlayingIds] = createSignal<number[]>([])
 
   onMount(() => {
     invoke<number[]>('running_game_ids').then(ids => {
@@ -253,14 +255,16 @@ const GamePage = (): JSX.Element => {
         if (startTime !== undefined) {
           sessionStartTimes.delete(game.id)
           // Use Rust-computed foreground time (respects precision mode)
-          const secs = event.payload.foreground_secs
+          const secs = event.payload.session_secs
           const duration = formatSessionDuration(secs * 1000)
 
           if (event.payload.success) {
             const today = new Date().toISOString().slice(0, 10)
-            invoke('record_daily_playtime', { date: today, secs }).catch(e =>
-              console.error('Failed to record daily playtime:', e)
-            )
+            invoke('record_daily_playtime', {
+              gameId: game.id,
+              date: today,
+              secs
+            }).catch(e => console.error('Failed to record daily playtime:', e))
             toast.success(`${game.name} ${t('game.sessionDuration', { duration })}`)
           } else {
             toast.error(`${game.name}${t('hint.exitAbnormally')} (${duration})`)

@@ -110,8 +110,6 @@ export const dict: DeepPartial<RawDictionary> = {
     self: '统计',
     dailyPlaytime: '每日游玩时长',
     noData: '暂无游玩数据，启动游戏即可开始统计！',
-    hours: '小时',
-    minutes: '分钟',
     totalLabel: '总计',
     last7Days: '最近 7 天'
   },
