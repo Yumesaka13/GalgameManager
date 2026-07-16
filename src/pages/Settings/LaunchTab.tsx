@@ -1,7 +1,6 @@
 // src/pages/settings/AppearanceTab.tsx
-import { type ThemeMode } from '@bindings/ThemeMode'
 import { myToast } from '@components/ui/myToast'
-import { Select, SettingRow, SettingSection, SwitchToggle } from '@components/ui/settings'
+import { SettingRow, SettingSection, SwitchToggle } from '@components/ui/settings'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '~/i18n'
 import { useConfig } from '~/store'

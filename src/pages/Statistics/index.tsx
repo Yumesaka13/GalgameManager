@@ -67,20 +67,6 @@ const StatisticsPage: Component = () => {
     })
   })
 
-  // Daily totals for summary
-  const dailyTotals = createMemo(() => {
-    const data = rawData()
-    const days = buildLast7Days()
-    const totals: Record<string, number> = {}
-    for (const d of days) totals[d] = 0
-    for (const gameData of Object.values(data)) {
-      for (const [date, secs] of Object.entries(gameData)) {
-        if (totals[date] !== undefined) totals[date] += secs
-      }
-    }
-    return totals
-  })
-
   const fetchData = async () => {
     try {
       const data = await invoke<PerGameData>('get_daily_playtime')

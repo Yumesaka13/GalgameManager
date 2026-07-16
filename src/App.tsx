@@ -4,15 +4,13 @@ import {
   createLocalStorageManager,
   useColorMode
 } from '@kobalte/core'
-import { Navigate, Route, Router, useLocation } from '@solidjs/router'
+import { Navigate, Route, Router } from '@solidjs/router'
 import { BiRegularBarChartSquare, BiRegularExtension } from 'solid-icons/bi'
 import { CgGames } from 'solid-icons/cg'
 import { IoSettingsOutline } from 'solid-icons/io'
 import {
   createEffect,
-  createMemo,
   createSignal,
-  onMount,
   Show,
   type Component,
   type JSX
