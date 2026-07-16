@@ -16,7 +16,7 @@ use tauri::{AppHandle, Emitter as _};
 use ts_rs::TS;
 
 use crate::{
-    db::{device::VarMap, migration::{migrate, deserialize_daily_playtime_compat}},
+    db::{device::VarMap, migration::migrate},
     error::{Error, Result},
     plugin::{
         PluginInstance, PluginMetadatas, deserialize_metadatas_fallback,
@@ -78,11 +78,7 @@ pub struct Config {
     pub devices: Vec<Device>,
     pub settings: Settings,
     /// Daily playtime: game_id -> date (YYYY-MM-DD) -> seconds played
-    #[serde(
-        deserialize_with = "deserialize_daily_playtime_compat",
-        default,
-        skip_serializing_if = "HashMap::is_empty"
-    )]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub daily_playtime: HashMap<u32, HashMap<String, u32>>,
     #[serde(deserialize_with = "deserialize_metadatas_fallback")]
     pub plugin_metadatas: PluginMetadatas,
