@@ -58,18 +58,16 @@ pub fn migrate(mut config: Config) -> Config {
         }
         config.db_version = 1;
     }
-    // Migrate old flat daily_playtime { date -> secs } to per-game format.
+    // 迁移旧的每日游戏时间格式
     if config.db_version < 2 {
-        // Already handled by deserialize_daily_playtime_compat at load time;
-        // just bump the version so we don't re-run.
+        // 已在加载时由 deserialize_daily_playtime_compat 处理
+        // 只需更新版本号
         config.db_version = 2;
     }
     config
 }
 
-/// Custom deserializer that accepts both the old flat format
-/// `{ "2026-07-15" = 3600 }` and the new per-game format
-/// `{ 1 = { "2026-07-15" = 3600 } }`.
+/// 同时兼容新旧时间格式
 pub fn deserialize_daily_playtime_compat<'de, D>(
     deserializer: D,
 ) -> Result<HashMap<u32, HashMap<String, u32>>, D::Error>

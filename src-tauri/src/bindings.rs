@@ -342,12 +342,7 @@ pub fn get_daily_playtime() -> std::collections::HashMap<u32, std::collections::
 #[tauri::command]
 pub fn record_daily_playtime(game_id: u32, date: String, secs: u32) -> Result<()> {
     let mut lock = CONFIG.lock();
-    let entry = lock
-        .daily_playtime
-        .entry(game_id)
-        .or_default()
-        .entry(date)
-        .or_insert(0);
+    let entry = lock.daily_playtime.entry(game_id).or_default().entry(date).or_insert(0);
     *entry += secs;
     lock.store()?;
     Ok(())
