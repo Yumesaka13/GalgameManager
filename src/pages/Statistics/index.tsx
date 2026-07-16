@@ -1,5 +1,6 @@
 // src/pages/Statistics/index.tsx
 // Per-game daily playtime stacked bar chart powered by Chart.js
+import { useColorMode } from '@kobalte/core'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '~/i18n'
 import { useConfig } from '~/store'
@@ -11,7 +12,7 @@ import {
   LinearScale,
   Tooltip
 } from 'chart.js'
-import { createMemo, createSignal, onCleanup, onMount, Show, type Component } from 'solid-js'
+import { createEffect, createMemo, createSignal, onCleanup, onMount, Show, type Component } from 'solid-js'
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip)
 
@@ -31,6 +32,7 @@ type PerGameData = Record<number, Record<string, number>>
 const StatisticsPage: Component = () => {
   const { t } = useI18n()
   const { config } = useConfig()
+  const { colorMode } = useColorMode()
   const [rawData, setRawData] = createSignal<PerGameData>({})
   let canvasRef: HTMLCanvasElement | undefined
   let chartInstance: Chart | undefined
@@ -71,8 +73,6 @@ const StatisticsPage: Component = () => {
     try {
       const data = await invoke<PerGameData>('get_daily_playtime')
       setRawData(data)
-      // Schedule chart render after Solid processes the state update
-      queueMicrotask(() => renderChart())
     } catch (e) {
       console.error('Failed to fetch daily playtime:', e)
     }
@@ -80,6 +80,15 @@ const StatisticsPage: Component = () => {
 
   onMount(() => {
     fetchData()
+  })
+
+  // Re-render the chart whenever the underlying data or the color theme changes.
+  // createEffect runs after Solid commits DOM updates, so <canvas> is mounted
+  // before the first paint when there is data to show.
+  createEffect(() => {
+    rawData()
+    colorMode()
+    renderChart()
   })
 
   const renderChart = () => {
@@ -128,7 +137,7 @@ const StatisticsPage: Component = () => {
             display: ids.length > 1,
             position: 'bottom',
             labels: {
-              color: document.documentElement.classList.contains('dark')
+              color: colorMode() === 'dark'
                 ? '#9ca3af'
                 : '#6b7280',
               boxWidth: 12,
@@ -165,7 +174,7 @@ const StatisticsPage: Component = () => {
             stacked: true,
             grid: { display: false },
             ticks: {
-              color: document.documentElement.classList.contains('dark')
+              color: colorMode() === 'dark'
                 ? '#9ca3af'
                 : '#6b7280'
             }
@@ -175,12 +184,12 @@ const StatisticsPage: Component = () => {
             beginAtZero: true,
             ticks: {
               callback: val => `${val} ${t('unit.minute')}`,
-              color: document.documentElement.classList.contains('dark')
+              color: colorMode() === 'dark'
                 ? '#9ca3af'
                 : '#6b7280'
             },
             grid: {
-              color: document.documentElement.classList.contains('dark')
+              color: colorMode() === 'dark'
                 ? 'rgba(75,85,99,0.3)'
                 : 'rgba(209,213,219,0.5)'
             }
@@ -194,15 +203,27 @@ const StatisticsPage: Component = () => {
     chartInstance?.destroy()
   })
 
-  const totalMinutesAll = () => {
+  // Total minutes across the last 7 days — kept in sync with the chart below,
+  // which also only renders the 7-day window. Previously this summed *all*
+  // recorded history, disagreeing with both the label and the bars.
+  const weekTotalMinutes = createMemo(() => {
+    const data = rawData()
     let sum = 0
-    for (const gameData of Object.values(rawData())) {
-      for (const secs of Object.values(gameData)) {
-        sum += secs
+    for (const d of buildLast7Days()) {
+      for (const gameData of Object.values(data)) {
+        sum += gameData[d] ?? 0
       }
     }
     return sum / 60
-  }
+  })
+
+  const weekTotalLabel = createMemo(() => {
+    const mins = weekTotalMinutes()
+    if (mins >= 60) {
+      return `${Math.floor(mins / 60)}${t('unit.hour')} ${Math.round(mins % 60)}${t('unit.minute')}`
+    }
+    return `${Math.round(mins)} ${t('unit.minute')}`
+  })
 
   return (
     <div class="flex flex-col h-full text-gray-900 dark:text-gray-100">
@@ -218,9 +239,7 @@ const StatisticsPage: Component = () => {
             </span>
             <span class="text-lg font-bold text-blue-800 dark:text-blue-200">
               {t('stats.totalLabel')}:{' '}
-              {totalMinutesAll() >= 60
-                ? `${Math.floor(totalMinutesAll() / 60)}${t('unit.hour')} ${Math.round(totalMinutesAll() % 60)}${t('unit.minute')}`
-                : `${Math.round(totalMinutesAll())}${t('unit.minute')}`}
+              {weekTotalLabel()}
             </span>
           </div>
 
