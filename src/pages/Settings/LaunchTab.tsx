@@ -29,7 +29,7 @@ export const LaunchTab: Component = () => {
               await invoke('clear_all_daily_playtime')
               myToast({
                 variant: 'success',
-                message: t('settings.launch.clearDailyStat')
+                message: t('settings.launch.dailyStatCleared')
               })
             } catch (e) {
               myToast({ variant: 'error', message: String(e) })

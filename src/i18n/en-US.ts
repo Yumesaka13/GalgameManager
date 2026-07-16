@@ -302,7 +302,8 @@ export const dict = {
       dailyStatDesc:
         'Track daily playtime and show a statistics chart in the sidebar.',
       clearDailyStat: 'Clear All Data',
-      clearDailyStatDesc: 'Delete all historical daily playtime records.'
+      clearDailyStatDesc: 'Delete all historical daily playtime records.',
+      dailyStatCleared: 'Cleared all daily playtime records.'
     },
     device: {
       deviceIdentity: 'Device Identity',

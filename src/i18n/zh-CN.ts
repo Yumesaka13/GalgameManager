@@ -303,7 +303,8 @@ export const dict: DeepPartial<RawDictionary> = {
       dailyStat: '每日游玩时长统计',
       dailyStatDesc: '记录每日游玩时长并在侧边栏显示统计图表',
       clearDailyStat: '清除所有数据',
-      clearDailyStatDesc: '删除所有历史每日游玩时长记录。'
+      clearDailyStatDesc: '删除所有历史每日游玩时长记录。',
+      dailyStatCleared: '已清除所有每日游玩时长记录。'
     },
     device: {
       deviceIdentity: '设备信息',
