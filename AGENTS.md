@@ -10,14 +10,14 @@ temperature: 0
 
 - 少造轮子，如果有合适的第三方库就用
 - 少写重复代码，多抽离出可复用的组件，并考虑向后扩展性
-  - 你应该使用在编译期就能进行错误检查的设计，而不是推到运行期检查，例如多用枚举，不用硬编码；多做类型体操，不用 `any` 和 `as unknown`。
+    - 你应该使用在编译期就能进行错误检查的设计，而不是推到运行期检查，例如多用枚举，不用硬编码；多做类型体操，不用 `any` 和 `as unknown`。
 - 使用简体中文进行交流；在代码中使用英文注释。
 
 ## 开发守则
 
-- `bun run check` 检查 tsx 代码，`bun run test` 运行 TS 单测（vitest），在 `src-tauri` 下使用 `cargo test` 运行 Rust 单测/集成测试。
+- `bun run check` 检查 tsx 代码，`bun run test` 运行 TS 单测（vitest），`bun run lint` 运行 eslint，在 `src-tauri` 下使用 `cargo test` 运行 Rust 单测/集成测试。
 - 修改了 Rust 代码后，请在 src-tauri 下执行 `cargo test export_bindings` 更新 bindings。（别尝试找这个测试，别问为什么，直接执行即可）
-- 不要删除运行逻辑相关的关键注释和日志
+- 不要删除关键注释和日志；如果有失败的尝试 / bug 修复，请记录经验到注释中。
 - 对于复杂任务，请遵循原子化 commit
 
 # 项目规范
