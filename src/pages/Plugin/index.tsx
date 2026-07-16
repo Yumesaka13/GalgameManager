@@ -6,8 +6,8 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import { useI18n, type Dictionary } from '~/i18n'
 import { useConfig } from '~/store'
 import { FiChevronDown, FiChevronUp, FiExternalLink } from 'solid-icons/fi'
-import { createSignal, type Component } from 'solid-js'
-import { Dynamic, For, Show } from 'solid-js/web'
+import { createSignal, For, Show, type Component } from 'solid-js'
+import { Dynamic } from 'solid-js/web'
 import { PLUGIN_REGISTRY, type AnyPluginDef } from './plugins'
 import {
   getPluginMeta,

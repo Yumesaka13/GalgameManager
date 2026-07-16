@@ -2,7 +2,8 @@
 
 import { cn } from '~/lib/utils'
 import { FiAlertCircle, FiAlertTriangle, FiInfo } from 'solid-icons/fi'
-import type { Component, JSX } from 'solid-js'
+import { type Component, type JSX } from 'solid-js'
+import { Dynamic } from 'solid-js/web'
 
 /** Visual variant of a field hint — determines the icon and default color. */
 export type FieldHintVariant = 'warning' | 'error' | 'tip'
@@ -46,7 +47,6 @@ const VARIANT_DEFAULTS: Record<
  */
 export const FieldHint: Component<FieldHintProps> = props => {
   const cfg = () => VARIANT_DEFAULTS[props.variant]
-  const IconComponent = cfg().icon
 
   return (
     <p
@@ -56,7 +56,7 @@ export const FieldHint: Component<FieldHintProps> = props => {
         props.class
       )}
     >
-      <IconComponent class={cn('w-3 h-3 shrink-0', props.iconClass)} />
+      <Dynamic component={cfg().icon} class={cn('w-3 h-3 shrink-0', props.iconClass)} />
       {props.text ?? props.children}
     </p>
   )

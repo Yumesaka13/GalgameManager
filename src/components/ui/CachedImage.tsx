@@ -41,6 +41,7 @@ const CachedImage: Component<ImageProps> = props => {
 
   const [imageHash] = createResource(
     () => [props.url, props.hash] as const,
+    // eslint-disable-next-line solid/reactivity -- fetcher only re-runs on key change; reactive props are safe
     async ([rawUrl, currentHash]) => {
       if (!rawUrl) return null
 

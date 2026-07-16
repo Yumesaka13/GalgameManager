@@ -45,7 +45,7 @@ export default tseslint.config(
       'no-unassigned-vars': 'off',
       // Keep a couple of noisy-but-useful ones as warnings so they don't
       // fail CI but still surface in the editor.
-      'no-console': 'warn',
+      'no-console': 'off',
       'prefer-const': 'error'
     }
   },

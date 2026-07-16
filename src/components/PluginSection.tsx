@@ -20,8 +20,8 @@ import {
   FiPlus,
   FiTrash2
 } from 'solid-icons/fi'
-import { createSignal, type Component } from 'solid-js'
-import { Dynamic, For, Show } from 'solid-js/web'
+import { createSignal, For, Show, type Component } from 'solid-js'
+import { Dynamic } from 'solid-js/web'
 
 interface PluginSectionProps {
   plugins: PluginInstance[]
@@ -254,10 +254,20 @@ export default function PluginSection(props: PluginSectionProps) {
                   </div>
 
                   <Show when={isExpanded()}>
-                    {(() => {
-                      const d = def()
-                      // Plugin has a per-game editor → render it.
-                      if (d?.GameEditor && 'config' in instance) {
+                    <Show
+                      when={def()?.GameEditor && 'config' in instance}
+                      fallback={
+                        // No editor for this plugin type (e.g. AutoUpload).
+                        // Without this branch the chevron flips but nothing
+                        // appears, which looks like the click was a no-op.
+                        <div class="border-t border-gray-200 dark:border-gray-600/50 px-3 py-2 bg-gray-50/50 dark:bg-gray-900/20 text-xs text-gray-400 dark:text-gray-500 italic">
+                          {t('plugin.configEmpty')}
+                        </div>
+                      }
+                    >
+                      {(() => {
+                        // Plugin has a per-game editor → render it.
+                        const d = def()!
                         // The editor varies per plugin, but at this dispatch
                         // point we only know the config is *some* game
                         // config. Cast the component to a union-aware editor
@@ -278,16 +288,8 @@ export default function PluginSection(props: PluginSectionProps) {
                             />
                           </div>
                         )
-                      }
-                      // No editor for this plugin type (e.g. AutoUpload).
-                      // Without this branch the chevron flips but nothing
-                      // appears, which looks like the click was a no-op.
-                      return (
-                        <div class="border-t border-gray-200 dark:border-gray-600/50 px-3 py-2 bg-gray-50/50 dark:bg-gray-900/20 text-xs text-gray-400 dark:text-gray-500 italic">
-                          {t('plugin.configEmpty')}
-                        </div>
-                      )
-                    })()}
+                      })()}
+                    </Show>
                   </Show>
                 </div>
               )

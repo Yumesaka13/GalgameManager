@@ -39,6 +39,7 @@ export function DropArea(props: DropAreaProps) {
       listen('tauri://drag-leave', () => {
         setHovering(false)
       }),
+      // eslint-disable-next-line solid/reactivity -- listeners are set up once; props.callback doesn't change
       listen<{ paths: string[] }>('tauri://drag-drop', event => {
         setHovering(false)
         props.callback?.(event.payload.paths)

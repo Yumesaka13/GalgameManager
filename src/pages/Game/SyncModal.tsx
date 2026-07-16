@@ -339,7 +339,7 @@ export function ArchiveSyncModal(props: ArchiveSyncModalProps) {
           </span>
         </div>
         <button
-          onClick={props.onClose}
+          onClick={() => props.onClose()}
           class="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors cursor-pointer"
         >
           <TbOutlineX class="w-5 h-5" />
@@ -491,7 +491,7 @@ export function ArchiveSyncModal(props: ArchiveSyncModalProps) {
                                 size="xs"
                                 label={t('game.sync.local')}
                               />
-                              <div class="w-[1px] h-3 bg-gray-300 dark:bg-gray-600 flex-shrink-0"></div>
+                              <div class="w-[1px] h-3 bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
                               <ActionButton
                                 onClick={() => handleDeleteRemote(item.name)}
                                 icon={TbOutlineTrash}

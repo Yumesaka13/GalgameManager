@@ -66,7 +66,7 @@ export function createRelativeTime(
     tick = localTick
   }
 
-  return createMemo(() => {
+  const memo = createMemo(() => {
     // Subscribe to tick so the memo refreshes on the heartbeat.
     tick()
     const time = timeTarget()
@@ -85,6 +85,7 @@ export function createRelativeTime(
     }
     return formatTimeAgoLocale(time, options.locale())
   })
+  return memo
 }
 
 /*

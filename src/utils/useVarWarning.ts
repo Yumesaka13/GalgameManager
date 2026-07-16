@@ -22,7 +22,7 @@ export function useVarWarning(
   const { t } = useI18n()
   const varMap = useVarMap()
 
-  return createMemo(() => {
+  const memo = createMemo(() => {
     const isEnabled = typeof enabled === 'function' ? enabled() : enabled
     if (!isEnabled) return undefined
     const vm = varMap()
@@ -38,4 +38,5 @@ export function useVarWarning(
       ? t('hint.unknownVar') + [...allUnknown].join(', ')
       : undefined
   })
+  return memo
 }

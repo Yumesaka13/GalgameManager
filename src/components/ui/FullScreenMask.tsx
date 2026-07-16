@@ -19,7 +19,7 @@ export default (props: FullScreenMaskProps) => {
   return (
     <div
       class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-20 p-4"
-      onClick={props.onClose}
+      onClick={() => props.onClose?.()}
     >
       <div onClick={e => e.stopPropagation()}>{props.children}</div>
     </div>

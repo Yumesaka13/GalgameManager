@@ -93,6 +93,7 @@ export const I18nProvider: FlowComponent = props => {
   })
 
   return (
+    // eslint-disable-next-line solid/reactivity -- dict.loading is a Resource accessor; consumers track it via t
     <I18nContext.Provider value={{ t, locale, setLocale, loading: dict.loading }}>
       {props.children}
     </I18nContext.Provider>
