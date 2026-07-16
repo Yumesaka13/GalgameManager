@@ -85,6 +85,8 @@ const StatisticsPage: Component = () => {
     try {
       const data = await invoke<PerGameData>('get_daily_playtime')
       setRawData(data)
+      // Schedule chart render after Solid processes the state update
+      queueMicrotask(() => renderChart())
     } catch (e) {
       console.error('Failed to fetch daily playtime:', e)
     }
@@ -94,7 +96,7 @@ const StatisticsPage: Component = () => {
     fetchData()
   })
 
-  createEffect(() => {
+  const renderChart = () => {
     const data = rawData()
     const days = buildLast7Days()
     const ids = activeGameIds()
@@ -102,13 +104,11 @@ const StatisticsPage: Component = () => {
     if (!canvasRef) return
     chartInstance?.destroy()
 
-    // Date labels
     const labels = days.map(d => {
       const parts = d.split('-')
       return `${parseInt(parts[1])}/${parseInt(parts[2])}`
     })
 
-    // Compute daily totals for tooltip
     const dayTotals = days.map(d => {
       let sum = 0
       for (const id of ids) {
@@ -117,7 +117,6 @@ const StatisticsPage: Component = () => {
       return sum / 60
     })
 
-    // One dataset per game
     const datasets = ids.map((id, idx) => {
       const color = GAME_COLORS[idx % GAME_COLORS.length]
       const name = gameNames()[id] ?? `Game #${id}`
@@ -203,7 +202,7 @@ const StatisticsPage: Component = () => {
         }
       }
     })
-  })
+  }
 
   onCleanup(() => {
     chartInstance?.destroy()

@@ -26,7 +26,10 @@ pub fn get_config() -> Result<Config> {
 #[tauri::command]
 pub fn save_config(new_config: Config) -> Result<()> {
     let mut lock = CONFIG.lock();
+    // Preserve Rust-managed fields that the frontend may not have
+    let daily = std::mem::take(&mut lock.daily_playtime);
     *lock = new_config;
+    lock.daily_playtime = daily;
     lock.last_updated = Utc::now();
     lock.store()?;
     Ok(())
