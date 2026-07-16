@@ -52,6 +52,26 @@ pub struct GameExitPayload {
     pub session_secs: u64,
 }
 
+/// Record daily playtime for `game_id` if the daily-stat feature is enabled.
+pub(crate) fn record_daily(game_id: u32, dur: chrono::TimeDelta) {
+    let secs = dur.num_seconds() as u32;
+    if secs == 0 {
+        return;
+    }
+    let mut lock = CONFIG.lock();
+    if lock.settings.launch.daily_stat {
+        let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+        let entry = lock
+            .daily_playtime
+            .entry(game_id)
+            .or_default()
+            .entry(today)
+            .or_insert(0);
+        *entry += secs;
+    }
+    // drop lock (no need to store — next update_game_time call handles that)
+}
+
 use std::fmt;
 
 impl fmt::Display for StartCtx {

@@ -32,6 +32,7 @@ pub async fn game_loop(
 ) -> Result<()> {
     let mut interval = time::interval(Duration::from_secs(60));
     let mut last_time_saved = chrono::Utc::now();
+    let mut total_session = chrono::TimeDelta::milliseconds(0);
     // The first tick fires immediately, so skip it.
     interval.tick().await;
 
@@ -39,17 +40,19 @@ pub async fn game_loop(
         tokio::select! {
             // Branch A: process exited
             status = child.wait() => {
-                let elapsed = chrono::Utc::now() - last_time_saved;
+                let chunk = chrono::Utc::now() - last_time_saved;
+                total_session += chunk;
+                super::record_daily(game_id, total_session);
                 let payload = super::GameExitPayload {
                     success: status.is_ok(),
-                    session_secs: elapsed.num_seconds() as u64,
+                    session_secs: total_session.num_seconds() as u64,
                 };
                 app.emit(&format!("game://exit/{}", game_id), &payload)?;
                 match status {
                     Ok(s) => info!("Game exited with status: {}", s),
                     Err(e) => error!("Error waiting for game process: {}", e),
                 }
-                super::update_game_time(&app, game_id, chrono::Utc::now() - last_time_saved)?;
+                super::update_game_time(&app, game_id, chunk)?;
                 game_exit_sender
                     .send(())
                     .map_err(|_| Error::InvalidChannel("game_exit_sender"))?;
@@ -57,7 +60,9 @@ pub async fn game_loop(
             }
             // Branch B: timer tick (every 60s)
             _ = interval.tick() => {
-                super::update_game_time(&app, game_id, chrono::Utc::now() - last_time_saved)?;
+                let chunk = chrono::Utc::now() - last_time_saved;
+                total_session += chunk;
+                super::update_game_time(&app, game_id, chunk)?;
                 last_time_saved = chrono::Utc::now();
             }
         }

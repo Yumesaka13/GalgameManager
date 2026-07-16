@@ -36,6 +36,11 @@ const markBackingUp = (id: number) => setBackingUpIds(prev => [...prev, id])
 const unmarkBackingUp = (id: number) =>
   setBackingUpIds(prev => prev.filter(bid => bid !== id))
 
+interface GameExitPayload {
+  success: boolean
+  session_secs: number
+}
+
 /**
  * Recover the set of running games on startup and register exit watchers.
  * Safe to call multiple times — only the first call does the work.
@@ -54,9 +59,9 @@ export async function initGameRuntime(t: TFunc): Promise<void> {
 
   setPlayingIds(ids)
   for (const id of ids) {
-    once<boolean>(`game://exit/${id}`, event => {
+    once<GameExitPayload>(`game://exit/${id}`, event => {
       setPlayingIds(prev => prev.filter(pid => pid !== id))
-      if (!event.payload) {
+      if (!event.payload.success) {
         const gameName = useConfig().config.games.find(g => g.id === id)?.name ?? ''
         toast.error(gameName + t('hint.exitAbnormally'))
       }
@@ -77,23 +82,16 @@ export async function launchGame(game: Game, t: TFunc): Promise<void> {
       setPlayingIds(prev => [...prev, game.id])
       toast.success(game.name + t('hint.isRunning'))
     }),
-    once<boolean>(`game://exit/${game.id}`, event => {
+    once<GameExitPayload>(`game://exit/${game.id}`, event => {
       setPlayingIds(prev => prev.filter(id => id !== game.id))
 
-      const startTime = sessionStartTimes.get(game.id)
-      if (startTime !== undefined) {
-        const duration = formatSessionDuration(Date.now() - startTime)
-        sessionStartTimes.delete(game.id)
-        if (event.payload) {
-          toast.success(`${game.name} ${t('game.sessionDuration', { duration })}`)
-        } else {
-          toast.error(`${game.name}${t('hint.exitAbnormally')} (${duration})`)
-        }
-        return
-      }
+      const secs = event.payload.session_secs
+      const duration = formatSessionDuration(secs * 1000)
 
-      if (!event.payload) {
-        toast.error(game.name + t('hint.exitAbnormally'))
+      if (event.payload.success) {
+        toast.success(`${game.name} ${t('game.sessionDuration', { duration })}`)
+      } else {
+        toast.error(`${game.name}${t('hint.exitAbnormally')} (${duration})`)
       }
     })
   ])

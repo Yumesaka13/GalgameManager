@@ -4,7 +4,7 @@ import { DropArea } from '@components/DropArea'
 import FullScreenMask from '@components/ui/FullScreenMask'
 import { myToast } from '@components/ui/myToast'
 import { invoke } from '@tauri-apps/api/core'
-import { listen, once, type UnlistenFn } from '@tauri-apps/api/event'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { log } from '@utils/log'
 import { fuckBackslash, getParentPath, isAbsolutePath } from '@utils/path'
 import {
@@ -13,7 +13,7 @@ import {
   resolveVarForDevice
 } from '@utils/resolveVar'
 import { getSortType, setSortType as setSortTypeCached } from '@utils/sortTypeCache'
-import { durationToSecs, formatSessionDuration } from '@utils/time'
+import { durationToSecs } from '@utils/time'
 import { useI18n } from '~/i18n'
 import { cn } from '~/lib/utils'
 import { useConfig } from '~/store'
@@ -43,11 +43,6 @@ import GameEditModal from './GameEditModal'
 import { GameItem, GameItemWrapper } from './GameItem'
 import { ArchiveSyncModal } from './SyncModal'
 
-interface GameExitPayload {
-  success: boolean
-  session_secs: number
-}
-
 const GamePage = (): JSX.Element => {
   const { config, actions } = useConfig()
   const { t } = useI18n()
@@ -62,23 +57,8 @@ const GamePage = (): JSX.Element => {
   const [editingIndex, setEditingIndex] = createSignal<number | null>(null)
 
   const [sortType, setSortType] = createSignal<SortType>('id')
-  const sessionStartTimes = new Map<number, number>()
-  const [playingIds, setPlayingIds] = createSignal<number[]>([])
 
   onMount(() => {
-    invoke<number[]>('running_game_ids').then(ids => {
-      setPlayingIds(ids)
-      for (const id of ids) {
-        once<GameExitPayload>(`game://exit/${id}`, event => {
-          console.log(`Game ${id} exited, success: ${event.payload.success}`)
-          setPlayingIds(prev => prev.filter(pid => pid !== id))
-          if (!event.payload.success) {
-            const gameName = config.games.find(g => g.id === id)?.name ?? ''
-            toast.error(gameName + t('hint.exitAbnormally'))
-          }
-        })
-      }
-    })
     getSortType().then(setSortType)
 
     // Track the grid scroll container width to recompute the responsive column
@@ -233,69 +213,7 @@ const GamePage = (): JSX.Element => {
   const handleStart = async (index: number) => {
     const game = config.games[index]
     if (!game) return
-
-    // 如果已经在运行中，阻止重复点击
-    if (playingIds().includes(game.id)) return
-
-    // 1. 使用 once 注册单次监听器
-    // 仍然获取 unlisten 函数，仅用于在 invoke 报错时手动清理
-    const [unlistenSpawn, unlistenExit] = await Promise.all([
-      once(`game://spawn/${game.id}`, () => {
-        console.log(`Game ${game.id} spawned`)
-        sessionStartTimes.set(game.id, Date.now())
-        setPlayingIds(prev => [...prev, game.id])
-        toast.success(game.name + t('hint.isRunning'))
-      }),
-
-      once<GameExitPayload>(`game://exit/${game.id}`, event => {
-        console.log(`Game ${game.id} exited, success: ${event.payload.success}`)
-        setPlayingIds(prev => prev.filter(id => id !== game.id))
-
-        const startTime = sessionStartTimes.get(game.id)
-        if (startTime !== undefined) {
-          sessionStartTimes.delete(game.id)
-          // Use Rust-computed foreground time (respects precision mode)
-          const secs = event.payload.session_secs
-          const duration = formatSessionDuration(secs * 1000)
-
-          if (event.payload.success) {
-            const today = new Date().toISOString().slice(0, 10)
-            invoke('record_daily_playtime', {
-              gameId: game.id,
-              date: today,
-              secs
-            }).catch(e => console.error('Failed to record daily playtime:', e))
-            toast.success(`${game.name} ${t('game.sessionDuration', { duration })}`)
-          } else {
-            toast.error(`${game.name}${t('hint.exitAbnormally')} (${duration})`)
-          }
-          return
-        }
-
-        if (!event.payload.success) {
-          toast.error(game.name + t('hint.exitAbnormally'))
-        }
-      })
-    ])
-
-    try {
-      // 2. 调用后端启动命令
-      await invoke('exec', { gameId: game.id })
-    } catch (error) {
-      // Distinguish plugin command failures from game launch failures
-      const isPluginError = typeof error === 'string' && error.includes('Plugin ')
-      if (isPluginError) {
-        log.error(`Plugin error for game ${game.name}: ${error}`)
-        toast.error(error)
-      } else {
-        log.error(`Failed to start game ${game.name}: ${error}`)
-        toast.error(game.name + t('hint.failToStart') + error)
-      }
-
-      // 3. 如果启动指令本身失败，手动清理刚才注册的监听器
-      unlistenSpawn()
-      unlistenExit()
-    }
+    await runtime.launch(game, t)
   }
 
   const handleSave = (game: Game) => {

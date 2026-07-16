@@ -11,7 +11,7 @@ import {
   LinearScale,
   Tooltip
 } from 'chart.js'
-import { createMemo, createSignal, onCleanup, onMount, type Component } from 'solid-js'
+import { createMemo, createSignal, onCleanup, onMount, Show, type Component } from 'solid-js'
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip)
 
@@ -239,7 +239,16 @@ const StatisticsPage: Component = () => {
           </div>
 
           <div class="relative h-80 w-full bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <canvas ref={canvasRef} class="w-full h-full" />
+            <Show
+              when={activeGameIds().length > 0}
+              fallback={
+                <div class="flex items-center justify-center h-full text-gray-400 dark:text-gray-500 text-sm">
+                  {t('stats.noData')}
+                </div>
+              }
+            >
+              <canvas ref={canvasRef} class="w-full h-full" />
+            </Show>
           </div>
 
           <div class="text-center text-sm text-gray-400 dark:text-gray-500">

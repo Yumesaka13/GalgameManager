@@ -300,7 +300,7 @@ export const dict = {
       precisionModeDesc: 'Only count time spent in foreground when window is focused.',
       dailyStat: 'Daily Playtime Statistics',
       dailyStatDesc:
-        'Track daily playtime and show a statistics chart in the sidebar. Disabling will delete all historical data.',
+        'Track daily playtime and show a statistics chart in the sidebar.',
       clearDailyStat: 'Clear All Data',
       clearDailyStatDesc: 'Delete all historical daily playtime records.'
     },
