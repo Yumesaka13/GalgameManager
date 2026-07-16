@@ -120,7 +120,7 @@ export function ArchiveSyncModal(props: ArchiveSyncModalProps) {
     let unlistenUploadError: UnlistenFn | undefined
 
     try {
-      unlistenUploadError = await listen<String>('sync://failed', event => {
+      unlistenUploadError = await listen<string>('sync://failed', event => {
         const { payload } = event
         toast.loading(
           `${t('hint.uploading')}${filename}...\n${t('hint.retryError')}: ${payload}`,
@@ -290,11 +290,14 @@ export function ArchiveSyncModal(props: ArchiveSyncModalProps) {
               newArchiveFilename: oldName
             })
             // 抛出特定错误信息给外层 catch
-            throw new Error(`云端同步失败，已恢复本地文件名。错误: ${remoteErr}`)
+            throw new Error(`云端同步失败，已恢复本地文件名。错误: ${remoteErr}`, {
+              cause: remoteErr
+            })
           } catch (rollbackErr) {
             // 极端的灾难性错误：本地回滚也失败了（文件被占用等）
             throw new Error(
-              `严重错误：云端重命名失败且本地回滚失败。请手动检查文件。Remote: ${remoteErr}, Rollback: ${rollbackErr}`
+              `严重错误：云端重命名失败且本地回滚失败。请手动检查文件。Remote: ${remoteErr}, Rollback: ${rollbackErr}`,
+              { cause: rollbackErr }
             )
           }
         }
@@ -313,8 +316,8 @@ export function ArchiveSyncModal(props: ArchiveSyncModalProps) {
 
       // 只有成功时才关闭编辑框
       setEditingName(null)
-    } catch (e: any) {
-      toast.error(t('hint.renameFailed') + e, { id: toastId })
+    } catch (e) {
+      toast.error(t('hint.renameFailed') + String(e), { id: toastId })
       // 注意：发生错误时，不设置 setEditingName(null)，保留用户输入以便修改重试
     } finally {
       // 无论成功失败，最后释放锁
@@ -336,7 +339,7 @@ export function ArchiveSyncModal(props: ArchiveSyncModalProps) {
           </span>
         </div>
         <button
-          onClick={props.onClose}
+          onClick={() => props.onClose()}
           class="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors cursor-pointer"
         >
           <TbOutlineX class="w-5 h-5" />
@@ -488,7 +491,7 @@ export function ArchiveSyncModal(props: ArchiveSyncModalProps) {
                                 size="xs"
                                 label={t('game.sync.local')}
                               />
-                              <div class="w-[1px] h-3 bg-gray-300 dark:bg-gray-600 flex-shrink-0"></div>
+                              <div class="w-[1px] h-3 bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
                               <ActionButton
                                 onClick={() => handleDeleteRemote(item.name)}
                                 icon={TbOutlineTrash}

@@ -1,11 +1,13 @@
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { useI18n } from '~/i18n'
+import { FiDownloadCloud } from 'solid-icons/fi'
 import { createSignal, onCleanup, Show, type JSX } from 'solid-js'
 import FullScreenMask from './ui/FullScreenMask'
 
 interface DropAreaProps {
   /**
-   * Element to display when not hovering.
-   * @default <p>拖拽文件到此处</p>
+   * Normal (non-hovering) content rendered inside the container div.
+   * The drag-hover hint is shown on top of the overlay regardless.
    */
   children?: JSX.Element
   /**
@@ -20,8 +22,8 @@ interface DropAreaProps {
 }
 
 export function DropArea(props: DropAreaProps) {
+  const { t } = useI18n()
   const [hovering, setHovering] = createSignal(false)
-  const [innerText, setInnerText] = createSignal('拖拽文件到此处')
 
   // 存储取消监听的函数
   let unlisteners: UnlistenFn[] = []
@@ -37,13 +39,10 @@ export function DropArea(props: DropAreaProps) {
       listen('tauri://drag-leave', () => {
         setHovering(false)
       }),
+      // eslint-disable-next-line solid/reactivity -- listeners are set up once; props.callback doesn't change
       listen<{ paths: string[] }>('tauri://drag-drop', event => {
         setHovering(false)
-        if (props.callback) {
-          props.callback(event.payload.paths)
-        } else {
-          setInnerText(`获取到路径：${event.payload.paths.join(', ')}`)
-        }
+        props.callback?.(event.payload.paths)
       })
     ])
     if (disposed) {
@@ -66,10 +65,17 @@ export function DropArea(props: DropAreaProps) {
   return (
     <>
       <Show when={hovering()}>
-        <FullScreenMask />
+        {/* The release hint is rendered *inside* the mask so it sits on top
+            of the dark/blur overlay, centered. */}
+        <FullScreenMask>
+          <div class="flex flex-col items-center gap-4 text-white select-none">
+            <FiDownloadCloud class="w-20 h-20 drop-shadow-lg animate-pulse" />
+            <p class="text-xl font-medium drop-shadow">{t('hint.dragFileHere')}</p>
+          </div>
+        </FullScreenMask>
       </Show>
       {/* 使用 div 包裹并应用传入的 class */}
-      <div class={props.class}>{props.children ?? <p>{innerText()}</p>}</div>
+      <div class={props.class}>{props.children}</div>
     </>
   )
 }

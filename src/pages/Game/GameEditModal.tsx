@@ -76,7 +76,9 @@ export default function GameEditModal(props: GameEditModalProps) {
   }
 
   // Auto-populate plugins for new games based on autoAdd meta config
+  // eslint-disable-next-line solid/reactivity -- used once for initial state
   const baseGame = structuredClone(unwrap(props.gameInfo ?? DEFAULT_GAME))
+  // eslint-disable-next-line solid/reactivity -- used once for initial state
   if (!isEditMode()) {
     const autoPlugins = PLUGIN_REGISTRY.filter(def => {
       const meta = config.pluginMetadatas[def.metaKey] as Record<string, unknown>
@@ -88,12 +90,14 @@ export default function GameEditModal(props: GameEditModalProps) {
   const [localGame, setLocalGame] = createStore<Game>(baseGame)
 
   // 临时存储输入框的内容，避免每次按键都触发图片加载
+  // eslint-disable-next-line solid/reactivity -- used once for initial signal value
   const [tempImageUrl, setTempImageUrl] = createSignal(localGame.imageUrl || '')
 
   // VNDB 搜索相关状态与逻辑
   const [isSearching, setIsSearching] = createSignal(false)
   const [searchId, setSearchId] = createSignal(0)
 
+  // eslint-disable-next-line solid/reactivity -- used once for initial signal value
   const [playTime, setPlayTime] = createSignal(durationToForm(localGame.useTime))
 
   // 自动触发逻辑：如果不是编辑模式，并且创建时带了游戏名称，则自动搜索 VNDB 封面
@@ -200,7 +204,7 @@ export default function GameEditModal(props: GameEditModalProps) {
           })
         }
       }
-    } catch (e) {
+    } catch {
       if (isSearching() && searchId() === currentSearchId) {
         myToast({
           variant: 'error',

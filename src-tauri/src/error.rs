@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::{Serialize, Serializer};
 use thiserror::Error;
 
@@ -29,8 +31,8 @@ pub enum Error {
     #[error("Game id not found")]
     GameNotFound,
 
-    #[error("Request error: {0}")]
-    Request(#[from] reqwest::Error),
+    #[error("Network error: {0}")]
+    Network(ReqwestDetailedError),
 
     #[error("Remote Operation Error: {0}")]
     RemoteOperation(#[from] opendal::Error),
@@ -76,12 +78,13 @@ pub enum Error {
 
 impl Clone for Error {
     fn clone(&self) -> Self {
-        // The underlying error types (io::Error, reqwest::Error, etc.) don't
+        // The underlying error types (io::Error, opendal::Error, etc.) don't
         // implement Clone, so a true deep clone is impossible. Instead we
-        // preserve the full formatted error message so that debugging info and
-        // the original error context are never lost (the previous impl collapsed
-        // every variant into a useless "Clone error").
-        Error::Cloned(self.to_string())
+        // flatten the full error chain (Display + every `source()`) into a
+        // string so debugging info and the original context are never lost
+        // (the previous impl used `to_string()` which only prints the
+        // top-level message and silently drops every underlying cause).
+        Error::Cloned(format_error_chain(self))
     }
 }
 
@@ -90,6 +93,102 @@ impl Serialize for Error {
     where
         S: Serializer,
     {
-        serializer.serialize_str(self.to_string().as_ref())
+        serializer.serialize_str(&format_error_chain(self))
+    }
+}
+
+/// Flatten an error and its entire `source()` chain into a single string.
+///
+/// Rust's default `to_string()` only prints the top-level error message and
+/// drops the underlying causes. This walks the whole chain so Tauri consumers
+/// (and logs) see the full "Caused by:" trail — for every error variant, not
+/// just reqwest.
+fn format_error_chain(err: &dyn std::error::Error) -> String {
+    use std::fmt::Write;
+    let mut s = err.to_string();
+    let mut current = err.source();
+    while let Some(source) = current {
+        let _ = write!(s, "\n  Caused by: {source}");
+        current = source.source();
+    }
+    s
+}
+
+/// A transparent wrapper around [`reqwest::Error`] with a human-readable
+/// [`fmt::Display`]: it surfaces the HTTP status code (client vs server) or,
+/// for transport errors, the error category plus the root cause buried in
+/// reqwest's source chain — instead of reqwest's opaque default
+/// "error sending request for url (...)".
+///
+/// The original [`reqwest::Error`] is kept in a public field so callers can
+/// still match on it, e.g. `if let Error::Network(ReqwestDetailedError(e)) =
+/// err` followed by `e.is_timeout()` to drive retry logic.
+///
+/// Note: `Error::Network` intentionally does *not* tag this field as
+/// `#[source]`. The Display here already flattens the whole reqwest chain, so
+/// marking it as a source would make `format_error_chain` (used by Clone /
+/// Serialize) print the same information twice.
+#[derive(Debug)]
+pub struct ReqwestDetailedError(pub reqwest::Error);
+
+impl fmt::Display for ReqwestDetailedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let e = &self.0;
+
+        // HTTP status errors produced by `Response::error_for_status()`: surface
+        // the code and whether it's a client (4xx) or server (5xx) problem.
+        if let Some(status) = e.status() {
+            let class = if status.is_client_error() {
+                "client"
+            } else {
+                "server"
+            };
+            let url = e.url().map(|u| u.as_str()).unwrap_or("unknown");
+            return write!(
+                f,
+                "HTTP {} {} ({class} error) for <{url}>",
+                status.as_u16(),
+                status.canonical_reason().unwrap_or("Unknown"),
+            );
+        }
+
+        // Transport / decoding errors: classify and expose the root cause.
+        let kind = if e.is_timeout() {
+            "timeout"
+        } else if e.is_connect() {
+            "connection failed"
+        } else if e.is_request() {
+            "request failed"
+        } else if e.is_body() {
+            "body error"
+        } else if e.is_decode() {
+            "decode error"
+        } else if e.is_redirect() {
+            "redirect error"
+        } else if e.is_builder() {
+            "builder error"
+        } else {
+            "request error"
+        };
+
+        // Drill down to the leaf cause (dns error, connection refused,
+        // invalid certificate, ...); reqwest buries these in its source chain.
+        let mut leaf: &dyn std::error::Error = e;
+        while let Some(next) = leaf.source() {
+            leaf = next;
+        }
+        let root = leaf.to_string();
+        let root = if root.is_empty() { e.to_string() } else { root };
+
+        match e.url() {
+            Some(url) => write!(f, "{kind} for <{url}>: {root}"),
+            None => write!(f, "{kind}: {root}"),
+        }
+    }
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(e: reqwest::Error) -> Self {
+        Error::Network(ReqwestDetailedError(e))
     }
 }

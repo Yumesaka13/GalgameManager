@@ -35,11 +35,14 @@ export async function fetchVnCover(gameName: string): Promise<string | null> {
   }
 
   try {
+    // The custom User-Agent is set globally on the webview via
+    // `app.windows[].userAgent` in tauri.conf.json — browser fetch treats
+    // 'User-Agent' as a forbidden header and silently drops it, so setting
+    // it here would be a no-op.
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'github:lxl66566/GalgameManager'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
     })

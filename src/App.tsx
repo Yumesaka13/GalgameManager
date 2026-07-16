@@ -4,7 +4,7 @@ import {
   createLocalStorageManager,
   useColorMode
 } from '@kobalte/core'
-import { Route, Router, useLocation } from '@solidjs/router'
+import { Navigate, Route, Router, useLocation } from '@solidjs/router'
 import { BiRegularBarChartSquare, BiRegularExtension } from 'solid-icons/bi'
 import { CgGames } from 'solid-icons/cg'
 import { IoSettingsOutline } from 'solid-icons/io'
@@ -14,7 +14,8 @@ import {
   createSignal,
   onMount,
   Show,
-  type Component
+  type Component,
+  type JSX
 } from 'solid-js'
 import { Toaster } from 'solid-toast'
 import { I18nProvider, useI18n, type Locale } from './i18n'
@@ -25,14 +26,21 @@ import Statistics from './pages/Statistics'
 import { Sidebar, SidebarItem } from './Sidebar'
 import { checkAndPullRemote, performAutoUpload, useConfig, useConfigInit } from './store'
 import { useAutoUploadService } from './store/AutoUploadService'
+import { initGameRuntime } from './store/gameRuntime'
 
-const MainLayout: Component = () => {
+// Persistent shell: stays mounted across route changes (it's the router
+// root), so the sidebar and all startup side effects run once.
+const MainLayout: Component<{ children?: JSX.Element }> = props => {
   const { config } = useConfig()
   const { t, setLocale } = useI18n()
   const { colorMode } = useColorMode()
   const [isServiceReady, setServiceReady] = createSignal(false)
 
   useConfigInit(t)
+
+  // Recover running-game state once at startup; listeners live for the app
+  // lifetime in the global runtime store.
+  initGameRuntime(t)
 
   checkAndPullRemote(t).finally(() => {
     setServiceReady(true)
@@ -109,7 +117,12 @@ const App: Component = () => {
       <ColorModeScript storageType={storageManager.type} />
       <ColorModeProvider storageManager={storageManager}>
         <I18nProvider>
-          <MainLayout />
+          <Router root={MainLayout}>
+            <Route path="/Game" component={Game} />
+            <Route path="/" component={() => <Navigate href="/Game" />} />
+            <Route path="/Plugin" component={Plugin} />
+            <Route path="/Settings" component={Settings} />
+          </Router>
           <Toaster
             position="bottom-left"
             toastOptions={{

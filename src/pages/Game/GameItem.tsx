@@ -93,8 +93,8 @@ export const GameItem = (props: GameItemProps) => {
 
               {/* 右上角呼吸灯 (Ping Animation) */}
               <div class="absolute top-3 right-3 flex h-3 w-3">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
               </div>
             </div>
           </Show>
@@ -173,18 +173,18 @@ export const GameItem = (props: GameItemProps) => {
   )
 }
 
-export const GameItemWrapper = ({
-  children,
-  extra_class
-}: {
+export const GameItemWrapper = (props: {
   children: JSX.Element
   extra_class?: string
 }) => {
   return (
     <div
-      class={`relative rounded-xl overflow-hidden bg-white dark:bg-slate-700 shadow-lg hover:shadow-xl transition-shadow duration-300 w-44 h-72 flex flex-col ${extra_class}`}
+      class={cn(
+        'relative rounded-xl overflow-hidden bg-white dark:bg-slate-700 shadow-lg hover:shadow-xl transition-shadow duration-300 w-44 h-72 flex flex-col',
+        props.extra_class
+      )}
     >
-      {children}
+      {props.children}
     </div>
   )
 }

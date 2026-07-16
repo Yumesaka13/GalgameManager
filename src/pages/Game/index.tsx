@@ -4,7 +4,7 @@ import { DropArea } from '@components/DropArea'
 import FullScreenMask from '@components/ui/FullScreenMask'
 import { myToast } from '@components/ui/myToast'
 import { invoke } from '@tauri-apps/api/core'
-import { listen, once, type UnlistenFn } from '@tauri-apps/api/event'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { log } from '@utils/log'
 import { fuckBackslash, getParentPath, isAbsolutePath } from '@utils/path'
 import {
@@ -13,10 +13,11 @@ import {
   resolveVarForDevice
 } from '@utils/resolveVar'
 import { getSortType, setSortType as setSortTypeCached } from '@utils/sortTypeCache'
-import { durationToSecs, formatSessionDuration } from '@utils/time'
+import { durationToSecs } from '@utils/time'
 import { useI18n } from '~/i18n'
 import { cn } from '~/lib/utils'
 import { useConfig } from '~/store'
+import { useGameRuntime } from '~/store/gameRuntime'
 import { AiTwotonePlusCircle } from 'solid-icons/ai'
 import {
   TbOutlineClockPlay,
@@ -25,6 +26,7 @@ import {
   TbOutlineSortAscendingNumbers
 } from 'solid-icons/tb'
 import {
+  createEffect,
   createMemo,
   createSignal,
   For,
@@ -32,9 +34,9 @@ import {
   onMount,
   Show,
   type Accessor,
+  type Component,
   type JSX
 } from 'solid-js'
-import { unwrap } from 'solid-js/store'
 import toast from 'solid-toast'
 import { Virtualizer } from 'virtua/solid'
 import GameEditModal from './GameEditModal'
@@ -49,6 +51,9 @@ interface GameExitPayload {
 const GamePage = (): JSX.Element => {
   const { config, actions } = useConfig()
   const { t } = useI18n()
+  // Running/backing-up state lives in the global runtime store so it survives
+  // sidebar navigation (the page component is unmounted on route change).
+  const runtime = useGameRuntime()
 
   const [isEditModalOpen, setEditModalOpen] = createSignal(false)
   const [isSyncModalOpen, setSyncModalOpen] = createSignal(false)
@@ -56,14 +61,8 @@ const GamePage = (): JSX.Element => {
   const [editingGameInfo, setEditingGameInfo] = createSignal<Game | null>(null)
   const [editingIndex, setEditingIndex] = createSignal<number | null>(null)
 
-  // 使用数组存储多个正在操作的游戏 ID
-  const [backingUpIds, setBackingUpIds] = createSignal<number[]>([])
-  const [playingIds, setPlayingIds] = createSignal<number[]>([])
-
   const [sortType, setSortType] = createSignal<SortType>('id')
-  const sessionStartTimes = new Map<number, number>()
 
-  // 避免切换路由后丢失游戏状态
   onMount(() => {
     invoke<number[]>('running_game_ids').then(ids => {
       setPlayingIds(ids)
@@ -96,11 +95,6 @@ const GamePage = (): JSX.Element => {
   const sortedGames = createMemo(() => {
     // 浅拷贝数组以避免修改 Store
     const games = [...config.games]
-    const ids = games.map(g => g.id)
-    // 检查重复 ID
-    if (ids.length !== new Set(ids).size) {
-      toast.error(t('hint.duplicateGameId'))
-    }
     const type = sortType()
 
     return games.sort((a, b) => {
@@ -110,11 +104,12 @@ const GamePage = (): JSX.Element => {
             b.name,
             config.settings.appearance.language || 'zh-CN'
           )
-        case 'lastPlayed':
+        case 'lastPlayed': {
           // 处理 null 情况，未游玩的排在后面
           const timeA = a.lastPlayedTime ? new Date(a.lastPlayedTime).getTime() : 0
           const timeB = b.lastPlayedTime ? new Date(b.lastPlayedTime).getTime() : 0
           return timeB - timeA
+        }
         case 'playTime':
           return durationToSecs(b.useTime) - durationToSecs(a.useTime)
         case 'id':
@@ -124,9 +119,26 @@ const GamePage = (): JSX.Element => {
     })
   })
 
-  const getRealIndex = (gameId: number) => {
-    return config.games.findIndex(g => g.id === gameId)
-  }
+  // O(1) lookup from game id -> index in config.games, rebuilt only when the
+  // games list changes. Avoids a findIndex linear scan per card per render.
+  const gameIndexById = createMemo(() => {
+    const map = new Map<number, number>()
+    config.games.forEach((g, i) => map.set(g.id, i))
+    return map
+  })
+
+  const getRealIndex = (gameId: number) => gameIndexById().get(gameId) ?? -1
+
+  // Duplicate-ID detection is a side effect — keep it out of the (pure)
+  // sortedGames memo so it doesn't fire during render or repeat per recompute.
+  createEffect(() => {
+    const games = config.games
+    if (games.length === 0) return
+    const ids = games.map(g => g.id)
+    if (ids.length !== new Set(ids).size) {
+      toast.error(t('hint.duplicateGameId'))
+    }
+  })
 
   // ── Virtualized responsive grid ───────────────────────────────────────────
   // The game grid uses CSS auto-fill columns (minmax(11rem,1fr)). Virtual
@@ -214,7 +226,8 @@ const GamePage = (): JSX.Element => {
     actions.replaceGame(index, game)
   }
 
-  // 游戏启动逻辑
+  // 游戏启动逻辑 — delegated to the global runtime store so listeners and
+  // session timing survive sidebar navigation.
   const handleStart = async (index: number) => {
     const game = config.games[index]
     if (!game) return
@@ -386,13 +399,13 @@ const GamePage = (): JSX.Element => {
     }
 
     // 检查该游戏是否正在备份中
-    if (backingUpIds().includes(game.id)) {
+    if (runtime.isBackingUp(game.id)) {
       log.warn('Game is already backing up')
       return
     }
 
     // 添加到备份队列
-    setBackingUpIds(prev => [...prev, game.id])
+    runtime.markBackingUp(game.id)
 
     const toastId = toast.loading(t('hint.archiving') + game.name + '...')
     let unlistenUploadError: UnlistenFn | undefined
@@ -402,7 +415,7 @@ const GamePage = (): JSX.Element => {
 
       toast.loading(t('hint.uploading') + game.name + '...', { id: toastId })
 
-      unlistenUploadError = await listen<String>('sync://failed', event => {
+      unlistenUploadError = await listen<string>('sync://failed', event => {
         const { payload } = event
         toast.loading(
           `${t('hint.uploading')} ${game.name}...\n${t('hint.retryError')}: ${payload}`,
@@ -428,7 +441,7 @@ const GamePage = (): JSX.Element => {
         unlistenUploadError()
       }
       // 从备份队列中移除
-      setBackingUpIds(prev => prev.filter(id => id !== game.id))
+      runtime.unmarkBackingUp(game.id)
     }
   }
 
@@ -447,7 +460,16 @@ const GamePage = (): JSX.Element => {
 
   return (
     <>
-      <div class="flex flex-col py-4 pl-4 pr-0 w-full h-full">
+      {/*
+        DropArea lives at the page level (not inside the virtualized grid) so
+        its global drag listeners and release-hint overlay stay mounted
+        regardless of scroll position. Dropping a file anywhere opens the
+        add-game modal.
+      */}
+      <DropArea
+        callback={handleDropAdd}
+        class="flex flex-col py-4 pl-4 pr-0 w-full h-full"
+      >
         {/* 头部区域：标题 + 排序控件 */}
         <div class="flex flex-row justify-between items-center mb-4">
           <h1 class="text-2xl font-bold dark:text-white">{t('game.self')}</h1>
@@ -495,8 +517,8 @@ const GamePage = (): JSX.Element => {
                           onContextMenuAction={action =>
                             handleContextMenuAction(game.id, action)
                           }
-                          isBackingUp={backingUpIds().includes(game.id)}
-                          isPlaying={playingIds().includes(game.id)}
+                          isBackingUp={runtime.isBackingUp(game.id)}
+                          isPlaying={runtime.isPlaying(game.id)}
                         />
                       )
                     }}
@@ -509,17 +531,12 @@ const GamePage = (): JSX.Element => {
                         class="flex flex-col flex-1 items-center justify-center text-center cursor-pointer w-full h-full group"
                         onClick={() => openGameAddModal()}
                       >
-                        <DropArea
-                          callback={handleDropAdd}
-                          class="w-full h-full flex flex-col items-center justify-center"
-                        >
-                          <AiTwotonePlusCircle class="w-16 h-16 text-gray-400 group-hover:text-blue-500 transition-colors duration-300" />
-                          <p class="text-gray-500 dark:text-gray-400 text-sm mt-2 px-4 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">
-                            {t('game.clickToAdd')}
-                            <br />
-                            {t('game.orDrag')}
-                          </p>
-                        </DropArea>
+                        <AiTwotonePlusCircle class="w-16 h-16 text-gray-400 group-hover:text-blue-500 transition-colors duration-300" />
+                        <p class="text-gray-500 dark:text-gray-400 text-sm mt-2 px-4 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">
+                          {t('game.clickToAdd')}
+                          <br />
+                          {t('game.orDrag')}
+                        </p>
                       </div>
                     </GameItemWrapper>
                   </Show>
@@ -528,7 +545,7 @@ const GamePage = (): JSX.Element => {
             }}
           </Virtualizer>
         </div>
-      </div>
+      </DropArea>
 
       <Show when={isEditModalOpen()}>
         <FullScreenMask onClose={closeEditModal}>
@@ -562,29 +579,30 @@ const SortOptions = (props: {
   class?: string
 }): JSX.Element => {
   const { t } = useI18n()
-  const sortOptions: Accessor<{ type: SortType; icon: any; label: string }[]> =
-    createMemo(() => [
-      {
-        type: 'id' as SortType,
-        icon: TbOutlineSortAscendingNumbers,
-        label: t('game.sortType.id')
-      },
-      {
-        type: 'name' as SortType,
-        icon: TbOutlineSortAscendingLetters,
-        label: t('game.sortType.name')
-      },
-      {
-        type: 'lastPlayed' as SortType,
-        icon: TbOutlineClockPlay,
-        label: t('game.sortType.lastPlayed')
-      },
-      {
-        type: 'playTime' as SortType,
-        icon: TbOutlineHourglassHigh,
-        label: t('game.sortType.playTime')
-      }
-    ])
+  const sortOptions: Accessor<
+    { type: SortType; icon: Component<{ class?: string }>; label: string }[]
+  > = createMemo(() => [
+    {
+      type: 'id' as SortType,
+      icon: TbOutlineSortAscendingNumbers,
+      label: t('game.sortType.id')
+    },
+    {
+      type: 'name' as SortType,
+      icon: TbOutlineSortAscendingLetters,
+      label: t('game.sortType.name')
+    },
+    {
+      type: 'lastPlayed' as SortType,
+      icon: TbOutlineClockPlay,
+      label: t('game.sortType.lastPlayed')
+    },
+    {
+      type: 'playTime' as SortType,
+      icon: TbOutlineHourglassHigh,
+      label: t('game.sortType.playTime')
+    }
+  ])
 
   return (
     <div class={cn('flex bg-gray-200 dark:bg-gray-900 rounded-md', props.class)}>

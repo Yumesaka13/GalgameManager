@@ -4,7 +4,6 @@ import { Select, SettingRow, SettingSection, SwitchToggle } from '@components/ui
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '~/i18n'
 import { useConfig } from '~/store'
-import { IoLanguage } from 'solid-icons/io'
 import { type Component } from 'solid-js'
 import toast from 'solid-toast'
 

@@ -1,7 +1,7 @@
 import { cn } from '~/lib/utils'
 import { FiAlertTriangle, FiInfo, FiX } from 'solid-icons/fi'
 import { For, Show, type JSX } from 'solid-js'
-import toast, { type Toast } from 'solid-toast'
+import toast from 'solid-toast'
 
 // ----------------------------------------------------------------------
 // solid-toast–style animated icons (co-located, matching the visual style
@@ -35,6 +35,7 @@ function MainCircle(props: { fill: string }) {
 function SecondaryCircle(props: { fill: string; begin?: string }) {
   const anim = {
     dur: '1s',
+    // eslint-disable-next-line solid/reactivity -- SVG attribute values are static strings
     begin: props.begin ?? '320ms',
     fill: 'freeze' as const,
     ...genSVGCubicBezier('0.0 0.0 0.2 1')
@@ -218,6 +219,7 @@ const ACTION_STYLES = {
 // ----------------------------------------------------------------------
 
 export const myToast = (props: CustomToastOptions) => {
+  /* eslint-disable solid/reactivity -- destructured values used inside toast closure; safe */
   const {
     message,
     title,
@@ -227,6 +229,7 @@ export const myToast = (props: CustomToastOptions) => {
     toastId,
     toastOptions
   } = props
+  /* eslint-enable solid/reactivity */
 
   const duration = variant === 'loading' ? Infinity : 8000
 
@@ -262,7 +265,7 @@ export const myToast = (props: CustomToastOptions) => {
               {action => (
                 <button
                   onClick={() => {
-                    action.onClick && action.onClick()
+                    action.onClick?.()
                     toast.dismiss(t.id)
                   }}
                   class={cn(

@@ -7,7 +7,7 @@ import { FormField, FormInput, FormSelect } from '@components/ui/form'
 import { useI18n, type Dictionary } from '~/i18n'
 import { useConfig } from '~/store'
 import { isLinux } from '~/utils/platform'
-import { Show } from 'solid-js/web'
+import { Show } from 'solid-js'
 import { AutoAddMetaEditor } from './AutoAddMetaEditor'
 import type { ConfigEditorProps, PluginDefinition } from './types'
 

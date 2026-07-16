@@ -41,28 +41,25 @@ const CachedImage: Component<ImageProps> = props => {
 
   const [imageHash] = createResource(
     () => [props.url, props.hash] as const,
+    // eslint-disable-next-line solid/reactivity -- fetcher only re-runs on key change; reactive props are safe
     async ([rawUrl, currentHash]) => {
       if (!rawUrl) return null
 
-      try {
-        const resolvedUrl = await resolveVarForDevice(rawUrl, config.devices)
-        // Always call prepare_image to ensure cache exists on this device.
-        // Rust handles fast-path (cache hit) efficiently — just a file exists check.
-        const hash = await invoke<string>('prepare_image', {
-          url: resolvedUrl,
-          hash: currentHash
-        })
+      const resolvedUrl = await resolveVarForDevice(rawUrl, config.devices)
+      // Always call prepare_image to ensure cache exists on this device.
+      // Rust handles fast-path (cache hit) efficiently — just a file exists check.
+      const hash = await invoke<string>('prepare_image', {
+        url: resolvedUrl,
+        hash: currentHash
+      })
 
-        // Notify parent of the resolved hash (may differ from currentHash
-        // if cache was missing and had to be re-computed)
-        if (hash !== currentHash) {
-          props.onHashUpdate?.(hash)
-        }
-
-        return hash
-      } catch (e: any) {
-        throw e
+      // Notify parent of the resolved hash (may differ from currentHash
+      // if cache was missing and had to be re-computed)
+      if (hash !== currentHash) {
+        props.onHashUpdate?.(hash)
       }
+
+      return hash
     }
   )
 
@@ -76,7 +73,7 @@ const CachedImage: Component<ImageProps> = props => {
   return (
     <div class={`relative overflow-hidden bg-gray-800/50 ${props.class || ''}`}>
       <ErrorBoundary
-        fallback={(err, reset) => (
+        fallback={err => (
           <div
             class="absolute inset-0 flex flex-col items-center justify-center bg-red-900/20 border border-red-500/30 text-red-400 p-2"
             title={err.toString()}

@@ -7,7 +7,7 @@
  */
 import { cn } from '~/lib/utils'
 import { Show, type Component, type JSX } from 'solid-js'
-import { Button, Input, LinkButton, Select, Switch, Textarea } from './controls'
+import { Button, Input, LinkButton, Select, Textarea } from './controls'
 
 // ─── Re-exports (standard density) ──────────────────────────────────────────
 

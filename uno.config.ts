@@ -21,9 +21,9 @@ export default defineConfig({
         }
 
         .drag-none, .drag-none * {
-          -webkit-user-drag: none,
-          user-drag: none,
-          user-select: none,
+          -webkit-user-drag: none;
+          user-drag: none;
+          user-select: none;
         }
       `
     }

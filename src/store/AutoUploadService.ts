@@ -1,9 +1,7 @@
 import { log } from '@utils/log'
-import { createEffect, createMemo, onCleanup, type Accessor } from 'solid-js'
-import { unwrap } from 'solid-js/store'
+import { createEffect, onCleanup, type Accessor } from 'solid-js'
 import { useConfig } from '.'
 
-// 假设的 Config 类型定义补充，确保类型安全
 interface AutoUploadOptions {
   enabled: Accessor<boolean>
   execUploadFunc: () => Promise<void>
@@ -12,6 +10,8 @@ interface AutoUploadOptions {
 // must be used in sync context
 export function useAutoUploadService({ enabled, execUploadFunc }: AutoUploadOptions) {
   const { config } = useConfig()
+  // Re-entrancy guard: an upload cycle can take longer than the interval,
+  // so skip scheduling a new one while the previous is still in flight.
   let isUploading = false
 
   createEffect(() => {
@@ -20,27 +20,22 @@ export function useAutoUploadService({ enabled, execUploadFunc }: AutoUploadOpti
       return
     }
 
-    const intervalSecs = createMemo(() => config.settings.autoSyncInterval)
-    if (intervalSecs() < 1) {
+    // Read directly off the store — the effect already tracks it, no need
+    // for an inner memo (which would be recreated on every effect run).
+    const intervalSecs = config.settings.autoSyncInterval
+    if (intervalSecs < 1) {
       log.warn(`[AutoUploadService] interval set to 0, do not start auto upload service.`)
       return
     }
 
-    const intervalMs = intervalSecs() * 1000
-    log.info(`[AutoUploadService] Service started. Interval: ${intervalSecs()}s`)
+    const intervalMs = intervalSecs * 1000
+    log.info(`[AutoUploadService] Service started. Interval: ${intervalSecs}s`)
 
-    // 3. 启动定时器
     const timerId = setInterval(async () => {
-      // 防重入锁
       if (isUploading) return
-
+      isUploading = true
       try {
-        // 4. 获取最新状态（关键点）
-        // 在回调函数内部读取 config，不会被 createEffect 追踪为依赖。
-        // 使用 unwrap 获取纯数据对象，避免在异步操作中产生意外的代理开销
-        const current = unwrap(config)
-
-        execUploadFunc()
+        await execUploadFunc()
       } catch (error) {
         log.error(`[AutoUploadService] Check failed: ${error}`)
       } finally {
@@ -48,8 +43,6 @@ export function useAutoUploadService({ enabled, execUploadFunc }: AutoUploadOpti
       }
     }, intervalMs)
 
-    // 6. 清理函数
-    // 当 intervalMinutes 变化导致 effect 重新运行，或组件卸载时调用
     onCleanup(() => {
       log.info('[AutoUploadService] Timer cleared')
       clearInterval(timerId)

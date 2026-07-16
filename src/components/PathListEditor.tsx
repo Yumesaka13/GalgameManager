@@ -9,6 +9,7 @@ import { useVarWarning } from '@utils/useVarWarning'
 import { useI18n } from '~/i18n'
 import { FiFilePlus, FiFolderPlus } from 'solid-icons/fi'
 import { createResource, createSignal, For, Show, type Component } from 'solid-js'
+import { Dynamic } from 'solid-js/web'
 
 interface PathListEditorProps {
   paths: string[]
@@ -42,22 +43,21 @@ interface PathListEditorProps {
 }
 
 interface ActionButtonProps {
-  icon: Component<any>
+  icon: Component<{ class?: string }>
   label: string
   onClick: () => void
 }
 
 // 抽离的带展开动画的按钮组件
 function ActionButton(props: ActionButtonProps) {
-  const Icon = props.icon
   return (
     <button
-      onClick={props.onClick}
+      onClick={() => props.onClick()}
       class="group flex items-center rounded p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-all cursor-pointer"
       title={props.label}
       type="button"
     >
-      <Icon class="w-4 h-4 shrink-0" />
+      <Dynamic component={props.icon} class="w-4 h-4 shrink-0" />
       {/* 利用 grid-template-columns 实现平滑的宽度展开动画 */}
       <div class="grid grid-cols-[0fr] group-hover:grid-cols-[1fr] transition-[grid-template-columns] duration-300 ease-in-out">
         <span class="overflow-hidden whitespace-nowrap text-xs font-medium pl-0 group-hover:pl-1.5 transition-all duration-300">
