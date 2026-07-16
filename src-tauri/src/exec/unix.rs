@@ -42,7 +42,6 @@ pub async fn game_loop(
             status = child.wait() => {
                 let chunk = chrono::Utc::now() - last_time_saved;
                 total_session += chunk;
-                super::record_daily(game_id, total_session);
                 let payload = super::GameExitPayload {
                     success: status.is_ok(),
                     session_secs: total_session.num_seconds() as u64,

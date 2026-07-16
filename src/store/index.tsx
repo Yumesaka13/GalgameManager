@@ -62,7 +62,6 @@ const DEFAULT_CONFIG: Config = {
   lastUpdated: new Date().toISOString(),
   lastSync: null,
   lastUploaded: null,
-  dailyPlaytime: {},
   games: [],
   devices: [],
   settings: {

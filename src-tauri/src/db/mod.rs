@@ -77,9 +77,6 @@ pub struct Config {
     pub games: Vec<Game>,
     pub devices: Vec<Device>,
     pub settings: Settings,
-    /// Daily playtime: game_id -> date (YYYY-MM-DD) -> seconds played
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub daily_playtime: HashMap<u32, HashMap<String, u32>>,
     #[serde(deserialize_with = "deserialize_metadatas_fallback")]
     pub plugin_metadatas: PluginMetadatas,
 }
@@ -100,6 +97,11 @@ pub struct Game {
     pub use_time: Duration,
     pub last_played_time: Option<DateTime<Utc>>,
     pub last_upload_time: Option<DateTime<Utc>>,
+    /// Daily playtime owned by this game: date (YYYY-MM-DD) -> seconds played.
+    /// Lives on the game (not the Config root) so it migrates, syncs and is
+    /// cleared together with the rest of the game's state.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub daily_playtime: HashMap<String, u32>,
     #[serde(
         skip_serializing_if = "Vec::is_empty",
         default,

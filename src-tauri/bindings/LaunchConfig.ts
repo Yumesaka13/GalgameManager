@@ -6,7 +6,7 @@ export type LaunchConfig = {
    */
   precisionMode: boolean;
   /**
-   * 统计每日游玩时长开关
+   * Enable daily playtime statistics
    */
   dailyStat: boolean;
 };

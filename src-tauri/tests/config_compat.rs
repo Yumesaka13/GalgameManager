@@ -41,6 +41,7 @@ fn sample_config() -> Config {
                 .with_timezone(&Utc),
         ),
         last_upload_time: None,
+        daily_playtime: Default::default(),
         plugins: vec![],
     });
     cfg

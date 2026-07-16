@@ -232,7 +232,6 @@ pub async fn game_loop(
 
         if !tracker.has_active_processes() {
             total_session += time_counter;
-            super::record_daily(game_id, total_session);
             info!("Game exited: game_id={game_id}");
             let payload = super::GameExitPayload {
                 success: true,
