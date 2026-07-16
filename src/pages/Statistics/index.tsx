@@ -29,6 +29,13 @@ const GAME_COLORS = [
 
 type PerGameData = Record<number, Record<string, number>>
 
+// Format a Date as the local YYYY-MM-DD key. Must match the backend's
+// chrono::Local bucketing so chart days line up with recorded seconds.
+const formatLocalDate = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate()
+  ).padStart(2, '0')}`
+
 const StatisticsPage: Component = () => {
   const { t } = useI18n()
   const { config } = useConfig()
@@ -42,7 +49,7 @@ const StatisticsPage: Component = () => {
     for (let i = 6; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
-      days.push(d.toISOString().slice(0, 10))
+      days.push(formatLocalDate(d))
     }
     return days
   }

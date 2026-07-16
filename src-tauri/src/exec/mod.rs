@@ -352,7 +352,10 @@ fn update_game_time(app: &tauri::AppHandle, game_id: u32, dur: chrono::TimeDelta
     if daily_stat {
         let secs = dur.num_seconds().max(0) as u32;
         if secs > 0 {
-            let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+            // Bucket by the user's *local* calendar day, not UTC, so an
+            // evening session lands on "today" from the player's viewpoint.
+            // The frontend chart uses the same local-day key.
+            let today = chrono::Local::now().format("%Y-%m-%d").to_string();
             *game.daily_playtime.entry(today).or_insert(0) += secs;
         }
     }
