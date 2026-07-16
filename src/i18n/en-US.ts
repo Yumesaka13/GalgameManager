@@ -299,10 +299,10 @@ export const dict = {
       precisionMode: 'Precision Mode',
       precisionModeDesc: 'Only count time spent in foreground when window is focused.',
       dailyStat: 'Daily Playtime Statistics',
-      dailyStatDesc: 'Track daily playtime and show a statistics chart in the sidebar.',
-      clearDailyStat: 'Clear All Data',
-      clearDailyStatDesc: 'Delete all historical daily playtime records.',
-      dailyStatCleared: 'Cleared all daily playtime records.'
+      dailyStatDesc: 'Track daily playtime and show the chart in the statistics page.',
+      clearDailyStat: 'Clear Data',
+      clearDailyStatDesc: 'Delete all game daily playtime records.',
+      dailyStatCleared: 'Cleared all game daily playtime records.'
     },
     device: {
       deviceIdentity: 'Device Identity',

@@ -301,10 +301,10 @@ export const dict: DeepPartial<RawDictionary> = {
       precisionMode: '精确模式',
       precisionModeDesc: '开启后只计算游戏在前台游玩的时长（窗口焦点时长）',
       dailyStat: '每日游玩时长统计',
-      dailyStatDesc: '记录每日游玩时长并在侧边栏显示统计图表',
-      clearDailyStat: '清除所有数据',
-      clearDailyStatDesc: '删除所有历史每日游玩时长记录。',
-      dailyStatCleared: '已清除所有每日游玩时长记录。'
+      dailyStatDesc: '记录每日游玩时长并在统计页展示',
+      clearDailyStat: '清除数据',
+      clearDailyStatDesc: '删除所有游戏的每日游玩时长数据。',
+      dailyStatCleared: '已清除所有游戏的每日游玩时长数据。'
     },
     device: {
       deviceIdentity: '设备信息',
