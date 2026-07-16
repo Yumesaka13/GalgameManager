@@ -137,7 +137,18 @@ pub trait MyOperation {
             return Ok(UploadConfigStatus::LocalClean);
         }
 
-        let remote_config = self.get_remote_config().await?;
+        // When safe=false, tolerate a corrupted/unparseable remote config
+        let remote_config = if safe {
+            self.get_remote_config().await?
+        } else {
+            match self.get_remote_config().await {
+                Ok(c) => c,
+                Err(e) => {
+                    warn!("Failed to read remote config (safe=false), force uploading anyway: {e}");
+                    None
+                }
+            }
+        };
         if let Some(remote_config) = remote_config {
             // Remote Newer Check
             if safe && remote_config.last_updated > local_last_sync {
