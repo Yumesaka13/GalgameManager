@@ -17,7 +17,7 @@ temperature: 0
 
 - `bun run check` 检查 tsx 代码，`bun run test` 运行 TS 单测（vitest），`bun run lint` 运行 eslint，在 `src-tauri` 下使用 `cargo test` 运行 Rust 单测/集成测试。
 - 修改了 Rust 代码后，请在 src-tauri 下执行 `cargo test export_bindings` 更新 bindings。（别尝试找这个测试，别问为什么，直接执行即可）
-- 不要删除关键注释和日志；如果有失败的尝试 / bug 修复，请记录经验到注释中。
+- 不要删除关键注释和日志；如果有失败的尝试 / bug 修复 / 设计考量，请用简洁的语言记录经验到注释中。
 - 对于复杂任务，请遵循原子化 commit
 
 # 项目规范
@@ -38,14 +38,14 @@ temperature: 0
 
 Rust 端可能 emit 的 tauri 事件如下：
 
-| key                    | value        | description                                                             |
-| ---------------------- | ------------ | ----------------------------------------------------------------------- |
-| game://exit/{game_id}  | bool         | 游戏退出时触发（value 代表是否正常退出）                                |
-| game://spawn/{game_id} | ()           | 游戏启动时触发                                                          |
-| config://updated       | Config       | Rust 侧更新配置时触发                                                   |
-| sync://failed          | String       | 与远端交互（上传/下载，存档/配置）失败时触发，value 为错误信息          |
-| toast://show           | ToastPayload | 向前端显示一个 toast 提示（可以通过 `<i18n.key>` 形式引用国际化字符串） |
-| toast://dismiss        | String       | 如果之前弹了一个 loading toast，可以发送此事件来撤销其状态              |
+| key                    | value           | description                                                                           |
+| ---------------------- | --------------- | ------------------------------------------------------------------------------------- |
+| game://exit/{game_id}  | GameExitPayload | 游戏退出时触发（`{ success: bool, session_secs: u64 }`，session_secs 为本次会话秒数） |
+| game://spawn/{game_id} | ()              | 游戏启动时触发                                                                        |
+| config://updated       | Config          | Rust 侧更新配置时触发                                                                 |
+| sync://failed          | String          | 与远端交互（上传/下载，存档/配置）失败时触发，value 为错误信息                        |
+| toast://show           | ToastPayload    | 向前端显示一个 toast 提示（可以通过 `<i18n.key>` 形式引用国际化字符串）               |
+| toast://dismiss        | String          | 如果之前弹了一个 loading toast，可以发送此事件来撤销其状态                            |
 
 rust features:
 
