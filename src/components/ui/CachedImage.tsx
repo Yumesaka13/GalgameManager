@@ -48,10 +48,18 @@ export function galimgUrl(hash: string): string {
 const CachedImage: Component<ImageProps> = props => {
   const { config } = useConfig()
 
+  // Use a stable string key so the fetcher only re-runs when a value
+  // actually changes. Returning a fresh array would always trip Solid's
+  // `===` source comparison and re-trigger the IPC call.
   const [imageHash] = createResource(
-    () => [props.url, props.hash, props.extractColor] as const,
+    () => `${props.url ?? ''}\0${props.hash ?? ''}\0${props.extractColor ?? false}`,
     // eslint-disable-next-line solid/reactivity -- fetcher only re-runs on key change; reactive props are safe
-    async ([rawUrl, currentHash, extractColor]) => {
+    async key => {
+      const [rawUrl, currentHash, extractColor] = key.split('\0') as [
+        string,
+        string,
+        'true' | 'false'
+      ]
       if (!rawUrl) return null
 
       const resolvedUrl = await resolveVarForDevice(rawUrl, config.devices)
@@ -61,7 +69,7 @@ const CachedImage: Component<ImageProps> = props => {
       const [hash, color] = await invoke<[string, string | null]>('prepare_image', {
         url: resolvedUrl,
         hash: currentHash,
-        needColor: extractColor ?? false
+        needColor: extractColor === 'true'
       })
 
       // Notify parent of the resolved hash (may differ from currentHash
