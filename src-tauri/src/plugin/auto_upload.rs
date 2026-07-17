@@ -145,7 +145,7 @@ impl super::PluginHandler for AutoUploadPlugin {
             Ok(filename) => filename,
             Err(e) => {
                 let msg = format!("{HINT_ARCHIVE_FAILED}{game_name}: {e}");
-                log::error!("AutoUpload: {msg}");
+                log::error!("AutoUpload: archive failed for {game_name}: {e}");
                 emit_toast(&ctx.launch.app, ToastVariant::Error, msg);
                 return Err(e);
             }
@@ -173,7 +173,7 @@ impl super::PluginHandler for AutoUploadPlugin {
             Err(e) => {
                 dismiss_toast(&ctx.launch.app, &loading_toast_id);
                 let msg = format!("{HINT_UPLOAD_FAILED}{game_name}: {e}");
-                log::error!("AutoUpload: {msg}");
+                log::error!("AutoUpload: build operator failed for {game_name}: {e}");
                 emit_toast(&ctx.launch.app, ToastVariant::Error, msg);
                 return Err(e);
             }
@@ -187,7 +187,7 @@ impl super::PluginHandler for AutoUploadPlugin {
             tx.rollback();
             dismiss_toast(&ctx.launch.app, &loading_toast_id);
             let msg = format!("{HINT_UPLOAD_FAILED}{game_name}: {e}");
-            log::error!("AutoUpload: {msg}");
+            log::error!("AutoUpload: before-upload hook failed for {game_name}: {e}");
             emit_toast(&ctx.launch.app, ToastVariant::Error, msg);
             return Err(e);
         }
@@ -203,7 +203,7 @@ impl super::PluginHandler for AutoUploadPlugin {
             tx.rollback();
             dismiss_toast(&ctx.launch.app, &loading_toast_id);
             let msg = format!("{HINT_UPLOAD_FAILED}{game_name}: {e}");
-            log::error!("AutoUpload: {msg}");
+            log::error!("AutoUpload: upload failed for {game_name}: {e}");
             emit_toast(&ctx.launch.app, ToastVariant::Error, msg);
             return Err(e);
         }
@@ -230,7 +230,7 @@ impl super::PluginHandler for AutoUploadPlugin {
 
         dismiss_toast(&ctx.launch.app, &loading_toast_id);
         let msg = format!("{HINT_UPLOAD_SUCCESS}{game_name}");
-        log::info!("AutoUpload: {msg}");
+        log::info!("AutoUpload: upload success for {game_name}");
         emit_toast(&ctx.launch.app, ToastVariant::Success, msg);
         Ok(())
     }
