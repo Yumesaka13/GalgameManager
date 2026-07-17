@@ -21,7 +21,7 @@
 //! 3. Clamp S and L into bands that read well on both light and dark themes, so
 //!    the color is neither neon nor invisible.
 
-use std::{f64::consts::PI, fs};
+use std::fs;
 
 use crate::{error::Result, http::IMAGE_CACHE_DIR};
 
@@ -81,64 +81,126 @@ pub fn extract_color(bytes: &[u8]) -> Option<String> {
     if w == 0 || h == 0 {
         return None;
     }
-    let raw = img.as_raw();
-    let n = w * h;
 
-    // Stride so we sample at most ~4096 pixels regardless of source size —
-    // plenty of statistical mass for a stable mean, cheap on multi-megapixel
-    // covers. Sampling is deterministic because the stride is fixed per size.
-    let stride = ((n as f64 / 4096.0).sqrt().ceil() as usize).max(1);
+    // 1. 修复采样逻辑：使用 2D 步长，避免 1D 步长导致的垂直/水平条纹偏差
+    let target_pixels: f64 = 4096.0;
+    let step_x = ((w as f64) / target_pixels.sqrt()).ceil() as usize;
+    let step_y = ((h as f64) / target_pixels.sqrt()).ceil() as usize;
+    let step_x = step_x.max(1);
+    let step_y = step_y.max(1);
 
-    let mut total = 0usize;
-    let mut sum_w = 0.0; // weight = saturation × lightness-tent
-    let mut sum_cos = 0.0; // weighted hue vector (x)
-    let mut sum_sin = 0.0; // weighted hue vector (y)
-    let mut sum_s = 0.0;
-    let mut sum_l = 0.0;
+    // 36 个色相桶，每 10 度一个
+    const BUCKETS: usize = 36;
+    let mut hue_buckets = vec![0.0f64; BUCKETS];
 
-    for idx in (0..n).step_by(stride) {
-        let off = idx * 4;
-        if raw[off + 3] < 128 {
-            continue; // skip (near-)transparent pixels
-        }
-        let r = raw[off] as f64 / 255.0;
-        let g = raw[off + 1] as f64 / 255.0;
-        let b = raw[off + 2] as f64 / 255.0;
-        let (hue, s, l) = rgb_to_hsl(r, g, b);
+    // 记录每个像素的数据以便后续局部平均
+    struct PixelData {
+        h: f64,
+        s: f64,
+        l: f64,
+        weight: f64,
+    }
+    let mut sampled_pixels = Vec::with_capacity(4096);
 
-        // Tent peaking at L=0.5 — pure black / pure white (cover letterbox
-        // borders, page backgrounds) get zero weight.
-        let l_weight = 1.0 - (2.0 * l - 1.0).abs();
-        // The hue of a near-gray pixel is numerically arbitrary; only let
-        // chromatic pixels steer the circular mean.
-        let w = s * l_weight;
+    let mut total_weight = 0.0;
+    let mut valid_pixels = 0;
 
-        total += 1;
-        sum_w += w;
-        if w > 0.0 {
-            let rad = hue * PI / 180.0;
-            sum_cos += w * rad.cos();
-            sum_sin += w * rad.sin();
-            sum_s += w * s;
-            sum_l += w * l;
+    for y in (0..h).step_by(step_y) {
+        for x in (0..w).step_by(step_x) {
+            let pixel = img.get_pixel(x as u32, y as u32);
+            if pixel[3] < 128 {
+                continue;
+            }
+
+            let r = pixel[0] as f64 / 255.0;
+            let g = pixel[1] as f64 / 255.0;
+            let b = pixel[2] as f64 / 255.0;
+            let (hue, s, l) = rgb_to_hsl(r, g, b);
+
+            // 权重逻辑保留：过滤掉黑白灰
+            let l_weight = 1.0 - (2.0 * l - 1.0).abs();
+            let weight = s * l_weight;
+
+            if weight > 0.05 {
+                // 忽略极度灰暗的像素
+                let bucket_idx = ((hue / 10.0).floor() as usize) % BUCKETS;
+                hue_buckets[bucket_idx] += weight;
+
+                sampled_pixels.push(PixelData {
+                    h: hue,
+                    s,
+                    l,
+                    weight,
+                });
+                total_weight += weight;
+                valid_pixels += 1;
+            }
         }
     }
 
-    if total == 0 || sum_w < (total as f64) * 0.02 {
-        // Essentially grayscale — let the caller use a non-image fallback.
+    if valid_pixels == 0 || total_weight < (valid_pixels as f64) * 0.02 {
         return None;
     }
 
-    let mut hue = sum_sin.atan2(sum_cos).to_degrees();
-    if hue < 0.0 {
-        hue += 360.0;
-    }
-    // Clamp into readable bands: vivid enough to distinguish series on a
-    // chart, soft enough not to clash with either UI theme.
-    let sat = (sum_s / sum_w).clamp(0.35, 0.68);
-    let light = (sum_l / sum_w).clamp(0.42, 0.62);
+    // 2. 找到权重最高的色相桶（主色调）
+    let mut max_weight = -1.0;
+    let mut best_bucket = 0;
+    for i in 0..BUCKETS {
+        // 考虑相邻桶的平滑（处理处于边界的颜色）
+        let prev = (i + BUCKETS - 1) % BUCKETS;
+        let next = (i + 1) % BUCKETS;
+        let smoothed_weight = hue_buckets[prev] * 0.5 + hue_buckets[i] + hue_buckets[next] * 0.5;
 
-    let (r, g, b) = hsl_to_rgb(hue, sat, light);
+        if smoothed_weight > max_weight {
+            max_weight = smoothed_weight;
+            best_bucket = i;
+        }
+    }
+
+    // 3. 局部平均：只平均属于主色调范围内的像素
+    let target_hue_center = best_bucket as f64 * 10.0 + 5.0;
+    let mut sum_sin = 0.0;
+    let mut sum_cos = 0.0;
+    let mut sum_s = 0.0;
+    let mut sum_l = 0.0;
+    let mut cluster_weight = 0.0;
+
+    for p in sampled_pixels {
+        // 计算色相差（考虑 360 度循环）
+        let mut diff = (p.h - target_hue_center).abs();
+        if diff > 180.0 {
+            diff = 360.0 - diff;
+        }
+
+        // 只统计距离主色调 30 度以内的像素
+        if diff <= 30.0 {
+            let rad = p.h * std::f64::consts::PI / 180.0;
+            sum_cos += p.weight * rad.cos();
+            sum_sin += p.weight * rad.sin();
+            sum_s += p.weight * p.s;
+            sum_l += p.weight * p.l;
+            cluster_weight += p.weight;
+        }
+    }
+
+    if cluster_weight == 0.0 {
+        return None;
+    }
+
+    let mut final_hue = sum_sin.atan2(sum_cos).to_degrees();
+    if final_hue < 0.0 {
+        final_hue += 360.0;
+    }
+
+    let final_sat = sum_s / cluster_weight;
+    let final_light = sum_l / cluster_weight;
+
+    // 4. 优化 Clamp：放宽限制，保留原本色彩的特性，只做最基本的防瞎眼处理
+    // 如果必须保证 UI 可读性，建议在前端用 CSS 处理，而不是在后端写死
+    let sat = final_sat.clamp(0.15, 0.85);
+    let light = final_light.clamp(0.20, 0.80);
+
+    let (r, g, b) = hsl_to_rgb(final_hue, sat, light);
     Some(format!(
         "#{:02x}{:02x}{:02x}",
         (r * 255.0).round() as u8,
