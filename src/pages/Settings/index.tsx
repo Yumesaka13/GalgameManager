@@ -7,10 +7,16 @@ import { DeviceTab } from './DeviceTab'
 import { LaunchTab } from './LaunchTab'
 import { StorageTab } from './StorageTab'
 
-type TabKey = 'general' | 'storage' | 'device' | 'launch'
+type TabKey = 'general' | 'launch' | 'device' | 'appearance'
+
+// Module-level signal: survives SettingsPage mount/unmount cycles caused by
+// route changes, so switching away and back keeps the active sub-page.
+// (Resets on full reload, which is fine for ephemeral UI state.)
+// Note: URL query (`?tab=`) was considered but the sidebar's `<A href="/Settings">`
+// strips the query on every navigation, so it can't survive sidebar clicks.
+const [activeTab, setActiveTab] = createSignal<TabKey>('general')
 
 export const SettingsPage: Component = () => {
-  const [activeTab, setActiveTab] = createSignal<TabKey>('storage')
   const { t } = useI18n()
 
   return (
@@ -22,10 +28,10 @@ export const SettingsPage: Component = () => {
         {/* Reusable Horizontal Tabs */}
         <Tabs
           items={[
-            { key: 'storage', label: t('settings.tabs.general') },
+            { key: 'general', label: t('settings.tabs.general') },
             { key: 'launch', label: t('settings.tabs.launch') },
             { key: 'device', label: t('settings.tabs.device') },
-            { key: 'general', label: t('settings.tabs.appearance') }
+            { key: 'appearance', label: t('settings.tabs.appearance') }
           ]}
           value={activeTab()}
           onChange={setActiveTab}
@@ -36,7 +42,7 @@ export const SettingsPage: Component = () => {
       <main class="flex-1 overflow-y-auto p-6 sm:p-8">
         <div class="max-w-4xl mx-auto">
           <Switch>
-            <Match when={activeTab() === 'storage'}>
+            <Match when={activeTab() === 'general'}>
               <StorageTab />
             </Match>
             <Match when={activeTab() === 'launch'}>
@@ -45,7 +51,7 @@ export const SettingsPage: Component = () => {
             <Match when={activeTab() === 'device'}>
               <DeviceTab />
             </Match>
-            <Match when={activeTab() === 'general'}>
+            <Match when={activeTab() === 'appearance'}>
               <AppearanceTab />
             </Match>
           </Switch>
