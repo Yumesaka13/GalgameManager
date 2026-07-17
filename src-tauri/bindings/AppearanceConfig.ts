@@ -6,4 +6,9 @@ export type AppearanceConfig = {
   theme: ThemeMode;
   language: string;
   timeDisplay: TimeDisplayConfig;
+  /**
+   * Derive each game's chart color from its cover image. When off, the
+   * statistics page falls back to a deterministic golden-angle palette.
+   */
+  extractCoverColor: boolean;
 };

@@ -313,6 +313,11 @@ export const dict: DeepPartial<RawDictionary> = {
       themeSystem: '跟随系统',
       themeLight: '浅色',
       themeDark: '深色',
+      extractCoverColor: '封面提取主题色',
+      extractCoverColorDesc: '在统计页使用从游戏封面提取的主题色；关闭后回退为随机取色',
+      statistics: {
+        self: '统计'
+      },
       timeDisplay: {
         self: '时间显示',
         language: '时间语言',

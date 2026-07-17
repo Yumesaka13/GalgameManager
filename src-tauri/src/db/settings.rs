@@ -221,6 +221,9 @@ pub struct AppearanceConfig {
     pub theme: ThemeMode,
     pub language: String,
     pub time_display: TimeDisplayConfig,
+    /// Derive each game's chart color from its cover image. When off, the
+    /// statistics page falls back to a deterministic golden-angle palette.
+    pub extract_cover_color: bool,
 }
 
 impl Default for AppearanceConfig {
@@ -229,6 +232,7 @@ impl Default for AppearanceConfig {
             theme: ThemeMode::System,
             language: sys_locale::get_locale().unwrap_or_else(|| "en-US".to_string()),
             time_display: Default::default(),
+            extract_cover_color: true,
         }
     }
 }

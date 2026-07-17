@@ -1,7 +1,7 @@
 // src/pages/settings/AppearanceTab.tsx
 //
-// "Interface" + "Time Display" sub-sections. The time display section
-// lets the user pick an independent language for the home-page
+// "Interface" + "Statistics" + "Time Display" sub-sections. The time display
+// section lets the user pick an independent language for the home-page
 // timestamps and switch between relative ("2d ago") and absolute
 // ("2026-06-17 12:34") formatting with a custom pattern.
 import { type ThemeMode } from '@bindings/ThemeMode'
@@ -11,9 +11,11 @@ import {
   Select,
   SettingRow,
   SettingSection,
-  SettingSubGroup
+  SettingSubGroup,
+  SwitchToggle
 } from '@components/ui/settings'
 import { useColorMode } from '@kobalte/core/color-mode'
+import { invoke } from '@tauri-apps/api/core'
 import { formatAbsoluteIso, formatTimeAgoLocale } from '@utils/time'
 import { resolveTimeLanguage, useI18n } from '~/i18n'
 import { useConfig } from '~/store'
@@ -56,6 +58,25 @@ export const AppearanceTab: Component = () => {
               { label: 'English', value: 'en-US' },
               { label: '简体中文', value: 'zh-CN' }
             ]}
+          />
+        </SettingRow>
+      </SettingSection>
+
+      <SettingSection title={t('settings.appearance.statistics.self')}>
+        <SettingRow
+          label={t('settings.appearance.extractCoverColor')}
+          description={t('settings.appearance.extractCoverColorDesc')}
+        >
+          <SwitchToggle
+            checked={config.settings.appearance.extractCoverColor}
+            onChange={e => {
+              // Just flip the toggle locally — the bulk color work is done
+              // on the Rust side so we get symmetric logging + a single
+              // `config://updated` emission that reconciles every consumer
+              // (statistics charts, GameItem extractColor keying, etc.).
+              actions.updateSettings(s => (s.appearance.extractCoverColor = e))
+              void invoke(e ? 'refresh_all_cover_colors' : 'clear_all_cover_colors')
+            }}
           />
         </SettingRow>
       </SettingSection>

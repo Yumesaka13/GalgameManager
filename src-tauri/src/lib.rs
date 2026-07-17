@@ -52,6 +52,8 @@ pub fn run() {
             archive,
             extract,
             prepare_image,
+            refresh_all_cover_colors,
+            clear_all_cover_colors,
             list_archive,
             upload_archive,
             delete_archive,

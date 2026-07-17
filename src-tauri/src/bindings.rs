@@ -58,6 +58,20 @@ pub async fn prepare_image(
     crate::color::prepare_image(&url, hash.as_deref(), need_color).await
 }
 
+/// Re-extract cover colors for all games in the background. See
+/// [`crate::color::refresh_all_cover_colors`].
+#[tauri::command(async)]
+pub async fn refresh_all_cover_colors(app: AppHandle) -> Result<()> {
+    crate::color::refresh_all_cover_colors(&app).await
+}
+
+/// Drop every cached `cover_color`. See
+/// [`crate::color::clear_all_cover_colors`].
+#[tauri::command]
+pub fn clear_all_cover_colors(app: AppHandle) -> Result<()> {
+    crate::color::clear_all_cover_colors(&app)
+}
+
 // region archive
 
 /// Resolve the local backup directory for a game's archives:

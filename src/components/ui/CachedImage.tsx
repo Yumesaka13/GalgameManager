@@ -51,8 +51,15 @@ const CachedImage: Component<ImageProps> = props => {
   // Use a stable string key so the fetcher only re-runs when a value
   // actually changes. Returning a fresh array would always trip Solid's
   // `===` source comparison and re-trigger the IPC call.
+  //
+  // `extractColor` is gated by `appearance.extractCoverColor` so that the
+  // global toggle fully disables the pipeline — no color work happens in
+  // `prepare_image`, and (combined with the toggle's clearing logic) no
+  // stale `coverColor` lingers on any game.
+  const colorEnabled = () =>
+    (props.extractColor ?? false) && config.settings.appearance.extractCoverColor
   const [imageHash] = createResource(
-    () => `${props.url ?? ''}\0${props.hash ?? ''}\0${props.extractColor ?? false}`,
+    () => `${props.url ?? ''}\0${props.hash ?? ''}\0${colorEnabled()}`,
     // eslint-disable-next-line solid/reactivity -- fetcher only re-runs on key change; reactive props are safe
     async key => {
       const [rawUrl, currentHash, extractColor] = key.split('\0') as [

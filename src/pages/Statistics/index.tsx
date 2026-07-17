@@ -77,14 +77,15 @@ const StatisticsPage: Component = () => {
   // Colors: the cover-derived accent color is computed once on the Rust side
   // (piggybacking on `prepare_image` when a cover first loads anywhere in the
   // app) and cached on `Game.coverColor`, so it is available synchronously
-  // here. Games without a usable cover fall back to a deterministic
-  // golden-angle HSL color. Both are keyed by game id, so colors stay stable
-  // across hovers and ranges.
+  // here. Games without a usable cover — or when `extractCoverColor` is off —
+  // fall back to a deterministic golden-angle HSL color. Both are keyed by
+  // game id, so colors stay stable across hovers and ranges.
+  const useCoverColor = () => config.settings.appearance.extractCoverColor
   const series = createMemo<ChartSeriesItem[]>(() =>
     activeGames().map(g => ({
       id: g.id,
       name: g.name,
-      color: g.coverColor ?? goldenColor(g.id)
+      color: (useCoverColor() ? g.coverColor : null) ?? goldenColor(g.id)
     }))
   )
   const colorOf = createMemo(() => new Map(series().map(s => [s.id, s.color] as const)))

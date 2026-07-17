@@ -23,7 +23,10 @@
 
 use std::fs;
 
-use crate::{error::Result, http::IMAGE_CACHE_DIR};
+use futures::stream::{self, StreamExt};
+use tauri::AppHandle;
+
+use crate::{db::CONFIG, error::Result, http::IMAGE_CACHE_DIR};
 
 /// Resolve an image's cache hash and, on demand, derive its accent color.
 ///
@@ -49,6 +52,81 @@ pub async fn prepare_image(
         None
     };
     Ok((resolved, color))
+}
+
+/// Re-extract the cover accent color for every game that has a cover image,
+/// writing the results back into `Game.cover_color` and emitting
+/// `config://updated`.
+///
+/// Called from the frontend when the user flips
+/// `appearance.extract_cover_color` back on — every `cover_color` was purged
+/// when the toggle was turned off, so this regenerates them in a single pass
+/// instead of waiting for each game card to scroll into view and load its
+/// image. Games without a usable cover (or whose extraction fails) are
+/// silently skipped; their `cover_color` stays `None` and the statistics
+/// page falls back to the golden-angle palette for them.
+///
+/// Concurrency is unbounded — the underlying `prepare_image` is mostly
+/// `spawn_blocking` work (file I/O + image decode) which naturally fans out
+/// across the tokio blocking pool, so one future per game saturates all
+/// cores instead of artificial throttling.
+pub async fn refresh_all_cover_colors(app: &AppHandle) -> Result<()> {
+    // Snapshot under a short lock so the (slow) downloads / decodes below
+    // don't block other CONFIG users.
+    let tasks: Vec<(u32, String, Option<String>)> = {
+        let lock = CONFIG.lock();
+        lock.games
+            .iter()
+            .filter_map(|g| {
+                let raw = g.image_url.as_deref()?;
+                let resolved = lock.resolve_var(raw).ok()?;
+                Some((g.id, resolved, g.image_sha256.clone()))
+            })
+            .collect()
+    };
+
+    let results: Vec<(u32, Option<String>)> = stream::iter(tasks)
+        .map(|(id, url, hash)| async move {
+            let color = prepare_image(&url, hash.as_deref(), true)
+                .await
+                .map(|(_, c)| c)
+                .unwrap_or(None);
+            (id, color)
+        })
+        .buffer_unordered(usize::MAX)
+        .collect()
+        .await;
+
+    let mut updated = 0usize;
+    let mut lock = CONFIG.lock();
+    for (id, color) in results {
+        if let Some(c) = color
+            && let Ok(g) = lock.get_game_by_id_mut(id)
+        {
+            g.cover_color = Some(c);
+            updated += 1;
+        }
+    }
+    log::info!("[color] refreshed cover colors for {updated} games");
+    lock.save_and_emit_no_update(app)?;
+    Ok(())
+}
+
+/// Drop every game's cached `cover_color`. Used when the user turns the
+/// `appearance.extract_cover_color` toggle off so the statistics page falls
+/// back to the golden-angle palette and `prepare_image` stops doing color
+/// work on subsequent loads.
+pub fn clear_all_cover_colors(app: &AppHandle) -> Result<()> {
+    let mut cleared = 0usize;
+    let mut lock = CONFIG.lock();
+    for g in &mut lock.games {
+        if g.cover_color.take().is_some() {
+            cleared += 1;
+        }
+    }
+    log::info!("[color] cleared cover colors for {cleared} games");
+    lock.save_and_emit_no_update(app)?;
+    Ok(())
 }
 
 /// Read a cached image by hash off-thread and extract its accent color.

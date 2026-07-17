@@ -283,6 +283,12 @@ export const dict = {
       themeSystem: 'System Default',
       themeLight: 'Light',
       themeDark: 'Dark',
+      extractCoverColor: 'Extract Cover Color',
+      extractCoverColorDesc:
+        "Use each game's cover dominant color for statistics charts. Falls back to a deterministic palette when off.",
+      statistics: {
+        self: 'Statistics'
+      },
       timeDisplay: {
         self: 'Time Display',
         language: 'Timestamp Language',
