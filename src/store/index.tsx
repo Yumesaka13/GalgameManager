@@ -250,6 +250,8 @@ export const checkAndPullRemote = async (
     toast(t('hint.remoteNotConfigured'))
     return
   }
+  // 显示一个 processing toast，结束时用相同 id 替换为结果提示
+  const toastId = toast.loading(t('hint.checkingRemoteConfig'))
   try {
     const [oldConfig, remoteIsNone] = await invoke<[Config | null, boolean]>(
       'apply_remote_config',
@@ -257,7 +259,7 @@ export const checkAndPullRemote = async (
     )
     // 如果是手动拉取，则 toast 提示
     if (skipCheck && remoteIsNone) {
-      toast.error(t('hint.remoteConfigNotFound'))
+      toast.error(t('hint.remoteConfigNotFound'), { id: toastId })
       return
     }
     if (oldConfig) {
@@ -266,6 +268,7 @@ export const checkAndPullRemote = async (
         variant: 'success',
         title: t('hint.syncSuccess'),
         message: skipCheck ? t('hint.forceUpdatedConfig') : t('hint.appliedNewConfig'),
+        toastId,
         actions: [
           {
             label: t('ui.withdraw'),
@@ -282,12 +285,14 @@ export const checkAndPullRemote = async (
         ]
       })
     } else {
-      toast.success(t('hint.localIsTheNewest'))
+      toast.success(t('hint.localIsTheNewest'), { id: toastId })
     }
   } catch (e) {
     // 只在自动拉取且配置了存储后端时提示，提升首次启动的体验
     if (skipCheck || !(e as Error).toString().includes('Storage provider not set')) {
-      toast.error(t('hint.checkRemoteConfigFailed') + ': ' + e)
+      toast.error(t('hint.checkRemoteConfigFailed') + ': ' + e, { id: toastId })
+    } else {
+      toast.dismiss(toastId)
     }
   }
 }

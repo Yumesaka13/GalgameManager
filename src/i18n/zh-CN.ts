@@ -353,6 +353,7 @@ export const dict: DeepPartial<RawDictionary> = {
     archiveExists: '存档已存在',
     archiveFailed: '归档失败: ',
     archiving: '正在归档: ',
+    checkingRemoteConfig: '正在检查远端配置...',
     checkRemoteConfigFailed: '检查远端配置失败',
     configAutoUploadFailed: '配置自动上传失败',
     configAutoUploadSuccess: '配置自动上传成功',

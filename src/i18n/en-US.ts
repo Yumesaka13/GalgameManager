@@ -332,6 +332,7 @@ export const dict = {
     archiveExists: 'Archive already exists',
     archiveFailed: 'Archive failed: ',
     archiving: 'Archiving: ',
+    checkingRemoteConfig: 'Checking remote config...',
     checkRemoteConfigFailed: 'Failed to check remote config',
     configAutoUploadFailed: 'Config auto upload failed',
     configAutoUploadSuccess: 'Config auto upload successfully',
