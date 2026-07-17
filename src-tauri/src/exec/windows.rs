@@ -13,7 +13,8 @@ use windows::Win32::{
             QueryInformationJobObject,
         },
         Threading::{
-            OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SET_QUOTA, PROCESS_TERMINATE,
+            GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SET_QUOTA,
+            PROCESS_TERMINATE,
         },
     },
     UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
@@ -25,8 +26,32 @@ use crate::{
     error::{Error, Result},
 };
 
+/// Exit code returned by `GetExitCodeProcess` for a process that is still
+/// running. Anything else is the real exit code (0 = clean, non-zero =
+/// abnormal). Hard-coded here to avoid pulling in another windows feature.
+const STILL_ACTIVE: u32 = 259;
+
 pub struct GameJob {
     handle: HANDLE,
+    /// Long-lived handle to the most recent foreground process that
+    /// belonged to this job (i.e. the game itself — even when launched
+    /// via Locale Emulator or another wrapper, the foreground window is
+    /// the game's own window, so this PID tracks the *real* game
+    /// process, not the launcher).
+    ///
+    /// We keep the handle so that after the process exits we can still
+    /// call `GetExitCodeProcess` to learn *how* it exited. The OS keeps
+    /// the underlying process object alive as long as anyone holds an
+    /// open handle, so even if the process is already reaped from the
+    /// job (and its PID possibly reused) our `GetExitCodeProcess` call
+    /// still targets the right process.
+    ///
+    /// Best-effort: if the game never reached the foreground (e.g. the
+    /// user alt-tabbed away immediately after launch and never came
+    /// back), this stays `None` and `last_exit_success` conservatively
+    /// reports `true`.
+    game_pid: Option<u32>,
+    game_handle: Option<HANDLE>,
 }
 
 // SAFETY: A Job Object handle is an opaque kernel object. The Windows API
@@ -43,7 +68,11 @@ impl GameJob {
     fn new() -> Result<Self> {
         // 创建一个未命名的 Job Object
         let handle = unsafe { CreateJobObjectW(None, None) }?;
-        Ok(Self { handle })
+        Ok(Self {
+            handle,
+            game_pid: None,
+            game_handle: None,
+        })
     }
 
     // 将进程加入 Job
@@ -84,8 +113,27 @@ impl GameJob {
         }
     }
 
-    pub fn is_focused(&self) -> bool {
-        unsafe {
+    /// Returns `true` if the game exited cleanly.
+    ///
+    /// We query the exit code of the foreground process we tracked while
+    /// the game was running. Exit code 0 (or `STILL_ACTIVE`, which should
+    /// not happen once `has_active_processes` is false but is treated as
+    /// clean defensively) ⇒ success; anything else ⇒ abnormal. If we
+    /// never captured a foreground PID, we conservatively report success
+    /// to preserve the historical behaviour.
+    pub fn last_exit_success(&self) -> bool {
+        let Some(h) = self.game_handle else {
+            return true;
+        };
+        let mut code: u32 = 0;
+        let ok = unsafe { GetExitCodeProcess(h, &mut code).is_ok() };
+        // !ok ⇒ the handle is somehow invalid; fall back to "clean" so we
+        // don't spam false-positive abnormal toasts.
+        !ok || code == 0 || code == STILL_ACTIVE
+    }
+
+    pub fn is_focused(&mut self) -> bool {
+        let foreground_pid = unsafe {
             // 1. 获取前台窗口句柄
             let hwnd = GetForegroundWindow();
             if hwnd.is_invalid() {
@@ -98,33 +146,50 @@ impl GameJob {
             if pid == 0 {
                 return false;
             }
+            pid
+        };
 
-            // 3. 打开进程句柄以查询信息
+        let in_job = unsafe {
+            // 3. 临时打开进程句柄查询是否属于 Job。
             // PROCESS_QUERY_LIMITED_INFORMATION 权限足够用于 IsProcessInJob，且比
             // ALL_ACCESS 更容易成功
-            let process_handle_res = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+            let Ok(process_handle) =
+                OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, foreground_pid)
+            else {
+                return false;
+            };
+            let mut is_in_job: BOOL = false.into();
+            let _ = IsProcessInJob(process_handle, Some(self.handle), &mut is_in_job);
+            let _ = CloseHandle(process_handle);
+            is_in_job.as_bool()
+        };
 
-            if let Ok(process_handle) = process_handle_res {
-                let mut is_in_job: BOOL = false.into();
-
-                // 4. 核心判断：该进程是否属于当前的 Job Object
-                // IsProcessInJob 的第二个参数是我们创建的 Job Handle
-                let _ = IsProcessInJob(process_handle, Some(self.handle), &mut is_in_job);
-
-                // 记得关闭临时打开的进程句柄
-                let _ = CloseHandle(process_handle);
-
-                return is_in_job.as_bool();
+        // 4. 当游戏本体的窗口在前台时，长期持有一个 handle 以便
+        // 退出时查询退出码。PID 没变就复用旧 handle，避免每秒开关。
+        if in_job && self.game_pid != Some(foreground_pid) {
+            if let Some(old) = self.game_handle.take() {
+                unsafe {
+                    let _ = CloseHandle(old);
+                }
             }
-
-            false
+            if let Ok(h) =
+                unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, foreground_pid) }
+            {
+                self.game_pid = Some(foreground_pid);
+                self.game_handle = Some(h);
+            }
         }
+
+        in_job
     }
 }
 
 impl Drop for GameJob {
     fn drop(&mut self) {
         unsafe {
+            if let Some(h) = self.game_handle.take() {
+                let _ = CloseHandle(h);
+            }
             let _ = CloseHandle(self.handle);
         }
     }
@@ -167,7 +232,7 @@ pub async fn launch_game(
 }
 
 pub async fn game_loop(
-    job: GameLaunchRes,
+    mut job: GameLaunchRes,
     game_id: u32,
     app: AppHandle,
     game_exit_sender: oneshot::Sender<()>,
@@ -186,7 +251,7 @@ pub async fn game_loop(
             total_session += time_counter;
             info!("Game exited: game_id={}", game_id);
             let payload = super::GameExitPayload {
-                success: true,
+                success: job.last_exit_success(),
                 session_secs: total_session.num_seconds() as u64,
             };
             app.emit(&format!("game://exit/{}", game_id), &payload)?;
@@ -198,8 +263,10 @@ pub async fn game_loop(
         }
 
         let now = chrono::Utc::now();
-        // 如果没有启用精确模式，或者游戏进程处于前台，则算作有效游玩时间
-        if !precision_mode || job.is_focused() {
+        // 始终调用 is_focused：除了计时判定外，它还顺带维护用于查询
+        // 退出码的 game_handle。非 precision 模式下无视其返回值。
+        let focused = job.is_focused();
+        if !precision_mode || focused {
             time_counter += now - last_time_saved;
             trace!("time_counter: {time_counter}");
         }

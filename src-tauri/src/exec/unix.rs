@@ -42,8 +42,15 @@ pub async fn game_loop(
             status = child.wait() => {
                 let chunk = chrono::Utc::now() - last_time_saved;
                 total_session += chunk;
+                // `status` is `io::Result<ExitStatus>`. Only `is_ok()` was
+                // checked before, which only tells us the *wait* itself
+                // succeeded — a process killed by a signal still yields
+                // `Ok(ExitStatus)` with `success() == false`. We must inspect
+                // the inner `ExitStatus` to distinguish a clean exit (code 0)
+                // from an abnormal one (non-zero code or signal termination).
+                let success = status.as_ref().map(|s| s.success()).unwrap_or(false);
                 let payload = super::GameExitPayload {
-                    success: status.is_ok(),
+                    success,
                     session_secs: total_session.num_seconds() as u64,
                 };
                 app.emit(&format!("game://exit/{}", game_id), &payload)?;

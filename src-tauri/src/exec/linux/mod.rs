@@ -51,9 +51,16 @@ const UNIT_LIVENESS_CACHE: Duration = Duration::from_secs(5);
 ///
 /// * `Child` — fallback for systems without systemd (or when spawning the scope
 ///   fails). Behaves like the legacy unix implementation.
+///
+/// The `unit` field on the systemd variants is retained so that, once the
+/// tracker reports the game has exited, we can ask systemd *how* it exited
+/// via `systemctl show --property=Result`. That distinguishes a clean
+/// `success` from `exit-code` / `signal` / `core-dump`, which the UI uses
+/// to decide between the "session ended" and "exited abnormally" toasts.
 pub enum GameTracker {
     Systemd {
         procs_path: PathBuf,
+        unit: String,
     },
     SystemdUnit {
         unit: String,
@@ -62,6 +69,10 @@ pub enum GameTracker {
     },
     Child {
         child: tokio::process::Child,
+        /// Last exit status captured when `try_wait` observed the child
+        /// had exited. Stored so `last_exit_success()` can report it
+        /// *after* `has_active_processes()` has already returned false.
+        last_success: Option<bool>,
     },
 }
 
@@ -84,10 +95,19 @@ impl GameTracker {
                 }
                 *cached
             }
-            Self::Child { child } => match child.try_wait() {
-                Ok(Some(_)) => false,
+            Self::Child {
+                child,
+                last_success,
+            } => match child.try_wait() {
+                Ok(Some(status)) => {
+                    *last_success = Some(status.success());
+                    false
+                }
                 Ok(None) => true,
-                Err(_) => false,
+                Err(_) => {
+                    *last_success = Some(false);
+                    false
+                }
             },
         }
     }
@@ -96,7 +116,7 @@ impl GameTracker {
     /// the processes in this tracker.
     pub fn is_focused(&self) -> bool {
         match self {
-            Self::Systemd { procs_path } => {
+            Self::Systemd { procs_path, .. } => {
                 let Some(pid) = foreground::shared().focused_pid() else {
                     return false;
                 };
@@ -112,7 +132,22 @@ impl GameTracker {
             // galgames fork helpers or wrappers; if so, this may report
             // false negatives. That's an acceptable trade-off for the
             // non-systemd path — install systemd for accurate tracking.
-            Self::Child { child } => child.id() == foreground::shared().focused_pid(),
+            Self::Child { child, .. } => child.id() == foreground::shared().focused_pid(),
+        }
+    }
+
+    /// Whether the most recent process-tree exit should be considered clean.
+    ///
+    /// For the systemd variants we ask systemd itself via `systemctl show
+    /// --property=Result` (`success` ⇒ clean; anything else ⇒ abnormal).
+    /// For the `Child` fallback we use the `ExitStatus::success()` flag
+    /// captured in `has_active_processes` when the child was observed to
+    /// have exited. If we never observed the exit, we conservatively
+    /// return `true` to preserve the historical behaviour.
+    pub fn last_exit_success(&mut self) -> bool {
+        match self {
+            Self::Systemd { unit, .. } | Self::SystemdUnit { unit, .. } => query_unit_result(unit),
+            Self::Child { last_success, .. } => last_success.unwrap_or(true),
         }
     }
 }
@@ -149,6 +184,32 @@ fn systemctl_unit_is_active(unit: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Ask systemd how the scope ended. systemd exposes the outcome on the
+/// unit's `Result` property: `success` for a clean exit, and one of
+/// `exit-code` / `signal` / `core-dump` / `timeout` / `oom-kill` / ... for
+/// abnormal terminations. Anything other than `success` (including a
+/// failure to query systemd at all, which most often means the unit has
+/// already been garbage-collected) is reported as abnormal so the user
+/// sees the "exited abnormally" toast for crashed games.
+fn query_unit_result(unit: &str) -> bool {
+    let out = std::process::Command::new("systemctl")
+        .args(["--user", "show", unit, "--property=Result", "--value"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .output();
+    match out {
+        Ok(o) => String::from_utf8_lossy(&o.stdout).trim() == "success",
+        Err(e) => {
+            warn!("systemctl show Result for {unit} failed: {e}");
+            // Be conservative: if we can't tell, fall back to the
+            // historical "treat exit as clean" behaviour so we don't
+            // spam false-positive abnormal toasts on broken systemd
+            // installs.
+            true
+        }
+    }
+}
+
 pub type GameLaunchRes = GameTracker;
 
 pub async fn launch_game(
@@ -179,7 +240,7 @@ pub async fn launch_game(
         match spawn::spawn_in_scope(&start_ctx, &unit).await {
             Ok(Some(procs_path)) => {
                 info!("Game spawned via systemd scope: {unit}");
-                GameTracker::Systemd { procs_path }
+                GameTracker::Systemd { procs_path, unit }
             }
             Ok(None) => {
                 info!(
@@ -195,13 +256,19 @@ pub async fn launch_game(
             Err(Error::Io(e)) => {
                 warn!("systemd-run invocation failed ({e}); falling back to direct spawn");
                 let child = start_ctx.build_async_command()?.spawn()?;
-                GameTracker::Child { child }
+                GameTracker::Child {
+                    child,
+                    last_success: None,
+                }
             }
             Err(e) => return Err(e),
         }
     } else {
         let child = start_ctx.build_async_command()?.spawn()?;
-        GameTracker::Child { child }
+        GameTracker::Child {
+            child,
+            last_success: None,
+        }
     };
 
     app.emit(&format!("game://spawn/{game_id}"), ())?;
@@ -234,7 +301,7 @@ pub async fn game_loop(
             total_session += time_counter;
             info!("Game exited: game_id={game_id}");
             let payload = super::GameExitPayload {
-                success: true,
+                success: tracker.last_exit_success(),
                 session_secs: total_session.num_seconds() as u64,
             };
             app.emit(&format!("game://exit/{game_id}"), &payload)?;
