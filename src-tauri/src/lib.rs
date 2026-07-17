@@ -100,11 +100,13 @@ pub fn run() {
                     .title("GalgameManager")
                     .inner_size(800.0, 600.0)
                     .resizable(true)
-                    .center()
-                    .drag_and_drop(true)
-                    .user_agent("github:lxl66566/GalgameManager")
-                    .initialization_script(format!("window.__INITIAL_CONFIG__ = {config_json};",))
-                    .build()?;
+                    .center();
+            #[cfg(windows)]
+            let main_window = main_window.drag_and_drop(true);
+            let main_window = main_window
+                .user_agent("github:lxl66566/GalgameManager")
+                .initialization_script(format!("window.__INITIAL_CONFIG__ = {config_json};",))
+                .build()?;
 
             #[cfg(desktop)]
             {

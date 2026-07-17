@@ -80,7 +80,7 @@ impl GameTracker {
     /// Returns `true` if the tracked process tree still has live members.
     pub fn has_active_processes(&mut self) -> bool {
         match self {
-            Self::Systemd { procs_path } => read_procs(procs_path)
+            Self::Systemd { procs_path, .. } => read_procs(procs_path)
                 .map(|pids| !pids.is_empty())
                 .unwrap_or(false),
             Self::SystemdUnit {
