@@ -7,10 +7,12 @@
 // Linkage:
 // - Hovering a row calls `onHoverGame`, driving the stacked chart's focus mode.
 // - `highlightGameId` (a segment hovered in the stacked chart) keeps that row
-//   intact and fades all others.
+//   intact and fades all others, and also auto-scrolls it into view — so the
+//   user can hover any column up top and immediately see the linked row even
+//   when the list is scrolled.
 import CachedImage from '@components/ui/CachedImage'
 import { useI18n } from '~/i18n'
-import { For, Show, type Component } from 'solid-js'
+import { createEffect, For, Show, type Component } from 'solid-js'
 import { formatDuration, type DurationUnits } from './timeRange'
 
 export interface GameBarRow {
@@ -34,8 +36,23 @@ const GamePlaytimeBars: Component<GamePlaytimeBarsProps> = props => {
   const { t } = useI18n()
   const maxSecs = () => Math.max(1, ...props.rows.map(r => r.secs))
 
+  // When the stacked chart highlights a game (chart segment hover), bring the
+  // matching row into view. `scrollIntoView({ block: 'nearest' })` is a no-op
+  // when the row is already visible, so this only ever scrolls the minimum
+  // distance — and only the closest scrollable ancestor (the list wrapper),
+  // never the outer page (which does not scroll).
+  let rootRef: HTMLDivElement | undefined
+  createEffect(() => {
+    const id = props.highlightGameId
+    if (id == null || !rootRef) return
+    // querySelector rather than per-row refs: rows are re-created on each
+    // scope change (new object literals), so a ref Map would need cleanup.
+    const el = rootRef.querySelector<HTMLElement>(`[data-game-id="${id}"]`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  })
+
   return (
-    <div class={`flex flex-col gap-1 ${props.class ?? ''}`}>
+    <div ref={rootRef} class={`flex flex-col gap-1 ${props.class ?? ''}`}>
       <Show
         when={props.rows.length > 0}
         fallback={
@@ -50,6 +67,7 @@ const GamePlaytimeBars: Component<GamePlaytimeBarsProps> = props => {
               props.highlightGameId != null && props.highlightGameId !== row.id
             return (
               <div
+                data-game-id={row.id}
                 class="flex cursor-default items-center gap-3 rounded-md px-2 py-1.5 transition-opacity duration-200 hover:bg-gray-100 dark:hover:bg-gray-800/60"
                 classList={{ 'opacity-40': dimmed() }}
                 onMouseEnter={() => props.onHoverGame(row.id)}

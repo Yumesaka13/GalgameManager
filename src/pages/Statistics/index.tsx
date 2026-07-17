@@ -179,10 +179,10 @@ const StatisticsPage: Component = () => {
         <h1 class="text-2xl font-bold">{t('stats.self')}</h1>
       </div>
 
-      <main class="flex-1 overflow-y-auto p-6 sm:p-8">
-        <div class="mx-auto max-w-4xl space-y-6">
+      <main class="flex min-h-0 flex-1 flex-col p-6 sm:p-8">
+        <div class="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col gap-6">
           {/* ── time controls ── */}
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2">
             <div class="flex rounded-lg border border-gray-200 p-0.5 dark:border-gray-700">
               <For each={GRANULARITIES}>
                 {g => (
@@ -277,7 +277,7 @@ const StatisticsPage: Component = () => {
             }
           >
             {/* ── stacked bar chart ── */}
-            <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+            <div class="shrink-0 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
               <StackedPlaytimeChart
                 data={bucketData()}
                 series={series()}
@@ -288,12 +288,17 @@ const StatisticsPage: Component = () => {
               />
             </div>
 
-            {/* ── per-game bars ── */}
-            <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-              <h2 class="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+            {/* ── per-game bars ──
+                The list fills whatever vertical space is left below the chart
+                and scrolls internally, so the chart stays pinned on screen
+                even with many games. flex-1 + min-h-0 acts as a viewport-
+                aware max-height: it grows to fill tall windows (no empty
+                space below) and shrinks on short windows (no page scroll). */}
+            <div class="flex min-h-0 flex-1 flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+              <h2 class="mb-2 shrink-0 text-sm font-semibold text-gray-700 dark:text-gray-300">
                 {t('stats.perGameTitle')}
               </h2>
-              <div ref={listRef}>
+              <div ref={listRef} class="custom-scrollbar min-h-0 flex-1 overflow-y-auto">
                 <GamePlaytimeBars
                   rows={rows()}
                   highlightGameId={hover()?.gameId ?? null}
