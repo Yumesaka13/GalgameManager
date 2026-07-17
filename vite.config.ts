@@ -58,8 +58,27 @@ export default defineConfig({
     jsxImportSource: 'solid-js'
   },
   optimizeDeps: {
-    // virtua's solid entry ships .jsx with a @jsxImportSource solid-js pragma;
-    // let vite-plugin-solid transform it instead of esbuild's dep optimizer.
+    // 预构建常用依赖：Vite 默认是"首次请求才 esbuild 预构建"，导致 dev
+    // 冷启动时这些库的第一次 import 要等数百 ms。显式 include 让 Vite 在
+    // dev server 启动阶段一次性预构建，避免首屏渲染被懒预构建阻塞。
+    include: [
+      'solid-js',
+      'solid-js/web',
+      'solid-js/store',
+      '@solidjs/router',
+      '@tauri-apps/api',
+      '@tauri-apps/plugin-fs',
+      '@tauri-apps/plugin-dialog',
+      '@tauri-apps/plugin-opener',
+      '@kobalte/core',
+      'solid-toast',
+      'clsx',
+      'tailwind-merge',
+      'dayjs'
+    ],
+    // virtua 的 solid 入口 ships .jsx with @jsxImportSource solid-js pragma；
+    // esbuild 的 automatic runtime 转换与 babel-preset-solid 输出不完全一致，
+    // 故交由 vite-plugin-solid 在请求管线中处理，不参与 dep optimizer。
     exclude: ['virtua']
   }
 })

@@ -28,15 +28,20 @@ const MainLayout: Component<{ children?: JSX.Element }> = props => {
   const { colorMode } = useColorMode()
   const [isServiceReady, setServiceReady] = createSignal(false)
 
-  useConfigInit(t)
+  useConfigInit(t, () => {
+    // onReady 在 useConfigInit 的 init() 完成（至少一次 await）后触发，
+    // 此时 SolidJS 的所有同步 effects（含 Toaster 的 mergeContainerOptions
+    // 与 colorMode 的 dark class 同步）都已执行，首个 toast 位置/主题才正确。
+    // 同时此处 config 已是真实值，避免基于 DEFAULT_CONFIG 误判 storage.provider。
+    checkAndPullRemote(t).finally(() => {
+      setServiceReady(true)
+    })
+  })
 
   // Recover running-game state once at startup; listeners live for the app
   // lifetime in the global runtime store.
   initGameRuntime(t)
 
-  checkAndPullRemote(t).finally(() => {
-    setServiceReady(true)
-  })
   useAutoUploadService({
     enabled: isServiceReady,
     execUploadFunc: async () => {
@@ -119,11 +124,7 @@ const App: Component = () => {
                 dark:!bg-slate-800 dark:!text-gray-100
                 border border-gray-200 dark:border-slate-700
                 shadow-lg rounded-md
-              `,
-              style: {
-                background: 'transparent',
-                'box-shadow': 'none'
-              }
+              `
             }}
           />
         </I18nProvider>

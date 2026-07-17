@@ -16,6 +16,16 @@ import { createStore, produce, reconcile, unwrap } from 'solid-js/store'
 import toast from 'solid-toast'
 import { currentDeviceId } from './Singleton'
 
+// 由 Rust 端的 initialization_script 在页面任何脚本之前注入
+// （见 src-tauri/src/lib.rs 的 WebviewWindowBuilder::initialization_script）。
+// 它是 Rust 端 CONFIG 静态量序列化后的快照，作为前端 store 的初始值，
+// 让 SolidJS 首屏渲染时 config.games 已有真实数据，无需等 IPC 往返。
+declare global {
+  interface Window {
+    __INITIAL_CONFIG__: Config
+  }
+}
+
 // ── Backend toast listener ──────────────────────────────────────────────────
 
 interface ToastEventPayload {
@@ -56,168 +66,57 @@ const startToastListener = async (t: i18n.Translator<Dictionary>) => {
 
 // ── Config store ─
 
-// 初始空状态
-const DEFAULT_CONFIG: Config = {
-  dbVersion: 0,
-  lastUpdated: new Date().toISOString(),
-  lastSync: null,
-  lastUploaded: null,
-  games: [],
-  devices: [],
-  settings: {
-    storage: {
-      provider: 'local',
-      local: { path: '' },
-      webdav: {
-        endpoint: '',
-        username: '',
-        password: '',
-        rootPath: ''
-      },
-      s3: {
-        bucket: '',
-        region: '',
-        endpoint: '',
-        accessKey: '',
-        secretKey: ''
-      }
-    },
-    archive: {
-      algorithm: 'squashfsZstd',
-      level: 3,
-      backupBeforeRestore: true
-    },
-    appearance: {
-      theme: 'system',
-      language: 'zh-CN',
-      timeDisplay: {
-        language: 'auto',
-        format: 'relative',
-        absoluteFormat: 'YYYY-MM-DD HH:mm'
-      }
-    },
-    launch: {
-      precisionMode: true,
-      dailyStat: true
-    },
-    autoSyncInterval: 1200,
-    syncIoTimeoutSecs: 60,
-    syncNonIoTimeoutSecs: 15
-  },
-  pluginMetadatas: {
-    execute: {
-      enabled: true,
-      autoAdd: false,
-      configDefaults: {
-        on: 'beforeGameStart',
-        cmd: '',
-        passExePath: false,
-        currentDir: '',
-        env: {},
-        exitSignal: 'none'
-      }
-    },
-    autoUpload: {
-      enabled: true,
-      autoAdd: false,
-      configDefaults: {
-        maxKept: 20,
-        retentionScope: 'both'
-      }
-    },
-    gameWrapper: {
-      enabled: true,
-      autoAdd: false,
-      configDefaults: {
-        cmd: '',
-        currentDir: '',
-        env: {}
-      }
-    },
-    localeEmulator: {
-      enabled: true,
-      autoAdd: false,
-      configDefaults: {
-        cmd: 'your_path/LEProc.exe "{}"'
-      }
-    },
-    translator: {
-      enabled: true,
-      autoAdd: false,
-      configDefaults: {
-        cmd: '',
-        currentDir: '',
-        exitSignal: 'sigterm'
-      }
-    },
-    voiceSpeedup: {
-      enabled: true,
-      autoAdd: false,
-      configDefaults: {
-        speed: 1.5,
-        provider: 'mmdevapi',
-        arch: 'auto'
-      }
-    },
-    voiceZerointerrupt: {
-      enabled: true,
-      autoAdd: false,
-      configDefaults: {
-        arch: 'auto'
-      }
-    },
-    wine: {
-      enabled: true,
-      autoAdd: false,
-      configDefaults: {
-        prefix: '',
-        arch: 'win64',
-        esync: false,
-        fsync: false,
-        dllOverrides: {},
-        locale: '',
-        killWineserverOnExit: false,
-        extraEnv: {}
-      }
-    }
-  }
-}
+// 前端不再维护 DEFAULT_CONFIG：初始值由 Rust 端通过
+// initialization_script 注入（window.__INITIAL_CONFIG__），与 Config::default()
+// /磁盘 config 完全一致。TS 端只消费，不复制默认值，避免漂移。
+const [config, setConfig] = createStore<Config>(window.__INITIAL_CONFIG__)
 
-const [config, setConfig] = createStore<Config>(DEFAULT_CONFIG)
-
-export const useConfigInit = (t?: i18n.Translator<Dictionary>) => {
+export const useConfigInit = (t?: i18n.Translator<Dictionary>, onReady?: () => void) => {
   onMount(() => {
     let unlisten: (() => void) | undefined
     let unlistenToast: (() => void) | undefined
     let mounted = true
 
     const init = async () => {
-      // 0. Listen for backend toast events (needs t for i18n resolution)
-      if (t) {
-        const toastFn = await startToastListener(t)
-        if (!mounted) {
-          toastFn()
-          return
-        }
-        unlistenToast = toastFn
-      }
+      // Config 的初始值已经由 initialization_script 注入（见 lib.rs），
+      // 这里只需注册监听器。两个 listen 互不依赖，并行注册以节省一次
+      // IPC 往返。refreshConfig 与 listener 注册竞速：listener 必须先注册
+      // 完成才不会漏掉 config://updated 事件，故 refreshConfig 的 await
+      // 放在 Promise.all 之后——这样既保证不漏消息，又不阻塞 listener 注册。
+      const refreshPromise = refreshConfig()
 
+      // 0. Listen for backend toast events (needs t for i18n resolution)
       // 1. 监听 Rust 端的主动推送
-      const fn = await listen<Config>('config://updated', event => {
+      const toastTask: Promise<(() => void) | undefined> = t
+        ? startToastListener(t)
+        : Promise.resolve(undefined)
+      const listenTask = listen<Config>('config://updated', event => {
         console.log('Config updated from Rust:', event.payload)
         setConfig(reconcile(event.payload))
       })
 
+      const [toastFn, fn] = await Promise.all([toastTask, listenTask])
+
       // 如果 await 期间组件已卸载，立即注销监听，防止内存泄漏
       if (!mounted) {
+        toastFn?.()
         fn()
         return
       }
 
+      unlistenToast = toastFn
       unlisten = fn
 
-      // 2. 获取本地最新配置 (监听建立后再拉取，确保不漏消息)
-      await refreshConfig()
+      // 2. 等待 refreshConfig 完成。initialization_script 已注入初始值，
+      //    这里是防御性的：确保 listener 注册期间若发生外部修改能被纠正。
+      await refreshPromise
+
+      // onReady 在至少一次 await 后调用，此时必然已切到 microtask 队列，
+      // SolidJS 的所有同步 effects（colorMode 同步 dark class、Toaster 的
+      // mergeContainerOptions 同步 position 等）都已执行完毕。这样由
+      // onReady 触发的 toast 才会用正确的 position 与主题色渲染。
+      if (!mounted) return
+      onReady?.()
     }
 
     init()

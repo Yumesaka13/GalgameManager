@@ -14,7 +14,7 @@ use bindings::*;
 use log::{error, info, warn};
 use sync::UploadConfigStatus;
 use tauri::{
-    Manager, generate_context,
+    Manager, WebviewUrl, WebviewWindowBuilder, generate_context,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
@@ -22,7 +22,7 @@ use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
 use crate::{
-    db::CONFIG_DIR,
+    db::{CONFIG, CONFIG_DIR},
     logging::{LOG_HANDLE, init_logger},
 };
 
@@ -82,10 +82,31 @@ pub fn run() {
                 _ = app
                     .handle()
                     .plugin(tauri_plugin_window_state::Builder::default().build());
-                _ = app
-                    .get_webview_window("main")
-                    .unwrap()
-                    .restore_state(StateFlags::POSITION | StateFlags::SIZE);
+            }
+
+            // 通过 initialization_script 将磁盘上已加载的 Config 注入到
+            // window.__INITIAL_CONFIG__。该脚本在页面任何脚本之前执行，前端
+            // createStore 可直接消费，从而：
+            //   1. 省掉启动时一次 get_config IPC 往返（首屏可见时间下降）；
+            //   2. 移除前端 DEFAULT_CONFIG——Rust 的 Config::default() 成为
+            //      唯一真相源，杜绝两边默认值漂移。
+            let config_json = serde_json::to_string(&*CONFIG.lock())
+                .expect("config serialization should not fail");
+
+            let main_window =
+                WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+                    .title("GalgameManager")
+                    .inner_size(800.0, 600.0)
+                    .resizable(true)
+                    .center()
+                    .drag_and_drop(true)
+                    .user_agent("github:lxl66566/GalgameManager")
+                    .initialization_script(format!("window.__INITIAL_CONFIG__ = {config_json};",))
+                    .build()?;
+
+            #[cfg(desktop)]
+            {
+                _ = main_window.restore_state(StateFlags::POSITION | StateFlags::SIZE);
             }
 
             let open_config_folder =
