@@ -69,6 +69,11 @@ const MainLayout: Component<{ children?: JSX.Element }> = props => {
           icon={<CgGames class="w-6 h-6" />}
           href="/Game"
         />
+        <SidebarItem
+          label={t('sidebar.plugin')}
+          icon={<BiRegularExtension class="w-6 h-6" />}
+          href="/Plugin"
+        />
         <Show when={config.settings.launch.dailyStat}>
           <SidebarItem
             label={t('sidebar.statistics')}
@@ -76,11 +81,6 @@ const MainLayout: Component<{ children?: JSX.Element }> = props => {
             href="/Statistics"
           />
         </Show>
-        <SidebarItem
-          label={t('sidebar.plugin')}
-          icon={<BiRegularExtension class="w-6 h-6" />}
-          href="/Plugin"
-        />
         <SidebarItem
           label={t('sidebar.settings')}
           icon={<IoSettingsOutline class="w-6 h-6" />}

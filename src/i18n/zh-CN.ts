@@ -325,7 +325,7 @@ export const dict: DeepPartial<RawDictionary> = {
       precisionModeDesc: '开启后只计算游戏在前台游玩的时长（窗口焦点时长）',
       dailyStat: '每日游玩时长统计',
       dailyStatDesc: '记录每日游玩时长并在统计页展示',
-      clearDailyStat: '清除数据',
+      clearDailyStat: '清除每日游玩时长数据',
       clearDailyStatDesc: '删除所有游戏的每日游玩时长数据。',
       dailyStatCleared: '已清除所有游戏的每日游玩时长数据。'
     },
