@@ -60,9 +60,7 @@ function ExecuteGameConfigEditor(props: ConfigEditorProps<ExecuteGameConfig>) {
             props.onCommit({
               ...props.config,
               on: (e.target as HTMLSelectElement).value as
-                | 'beforeGameStart'
-                | 'afterGameStart'
-                | 'gameExit'
+                'beforeGameStart' | 'afterGameStart' | 'gameExit'
             })
           }
         />
@@ -129,9 +127,7 @@ function ExecuteGameConfigEditor(props: ConfigEditorProps<ExecuteGameConfig>) {
             props.onCommit({
               ...props.config,
               exitSignal: (e.target as HTMLSelectElement).value as
-                | 'none'
-                | 'sigterm'
-                | 'sigkill'
+                'none' | 'sigterm' | 'sigkill'
             })
           }
         />
