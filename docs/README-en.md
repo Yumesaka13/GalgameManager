@@ -23,6 +23,13 @@ A cross-platform game launcher based on Tauri + SolidJS, designed for managing, 
 
 ## Changelog
 
+### v1.3.0
+
+- New feature: Daily playtime tracking + statistical data display
+- Fix: Issues introduced by the virtua virtualization in the previous version—broken drag‑and‑drop game addition prompts, and game cover images being fetched in parallel
+- Added detection of abnormal game exits
+- Other minor optimizations: prompt when pulling save data on startup, improved log content
+
 ### v1.2.0
 
 - New plugin: Wine, improving the user experience of running native GalgameManager on Linux and launching games via wine

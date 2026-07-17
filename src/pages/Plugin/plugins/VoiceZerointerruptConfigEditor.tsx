@@ -54,7 +54,7 @@ export const VOICE_ZEROINTERRUPT_PLUGIN: PluginDefinition<'voiceZerointerrupt'> 
     id: 'voiceZerointerrupt',
     nameKey: 'plugin.voiceZerointerrupt.name',
     descriptionKey: 'plugin.voiceZerointerrupt.description',
-    version: '1.2.0',
+    version: '1.3.0',
     author: 'lxl66566',
     links: [
       {
