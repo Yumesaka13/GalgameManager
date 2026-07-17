@@ -14,7 +14,7 @@ import * as Popover from '@kobalte/core/popover'
 import { useI18n } from '~/i18n'
 import { cn } from '~/lib/utils'
 import { useConfig } from '~/store'
-import { FiChevronLeft, FiChevronRight } from 'solid-icons/fi'
+import { FiChevronLeft, FiChevronRight, FiRotateCcw } from 'solid-icons/fi'
 import {
   createEffect,
   createMemo,
@@ -181,31 +181,57 @@ const StatisticsPage: Component = () => {
 
       <main class="flex min-h-0 flex-1 flex-col p-6 sm:p-8">
         <div class="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col gap-6">
-          {/* ── time controls ── */}
-          <div class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2">
-            <div class="flex rounded-lg border border-gray-200 p-0.5 dark:border-gray-700">
-              <For each={GRANULARITIES}>
-                {g => (
-                  <button
-                    class={cn(
-                      'rounded-md px-3 py-1 text-sm transition-colors',
-                      granularity() === g
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
-                    )}
-                    onClick={() => {
-                      setGranularity(g)
-                      setOffset(0)
-                    }}
-                  >
-                    {t(`stats.granularity.${g}`)}
-                  </button>
-                )}
-              </For>
+          {/* ── time controls ──
+               Grid [1fr auto 1fr]: the left and right columns share the
+               remaining space equally, so the center column is always
+               centered on the *whole* toolbar — not just on whatever width
+               is left after the side panels. That keeps the ← date →
+               cluster perfectly centered regardless of whether the reset
+               button (left) is shown or the duration label (right) changes
+               length. */}
+          <div class="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3">
+            {/* granularity selector + reset-to-current.
+                 The reset button only appears once the user navigates away
+                 from the current period. On mount the icon plays a one-shot
+                 counter-clockwise spin (ggm-rewind, 8 ticks) as a cue. */}
+            <div class="flex items-center gap-1.5 justify-self-start">
+              <div class="flex rounded-lg border border-gray-200 p-0.5 dark:border-gray-700">
+                <For each={GRANULARITIES}>
+                  {g => (
+                    <button
+                      class={cn(
+                        'rounded-md px-3 py-1 text-sm transition-colors',
+                        granularity() === g
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+                      )}
+                      onClick={() => {
+                        setGranularity(g)
+                        setOffset(0)
+                      }}
+                    >
+                      {t(`stats.granularity.${g}`)}
+                    </button>
+                  )}
+                </For>
+              </div>
+
+              <Show when={offset() !== 0}>
+                <Button
+                  size="icon"
+                  onClick={() => setOffset(0)}
+                  title={t('stats.backToCurrent')}
+                  aria-label={t('stats.backToCurrent')}
+                >
+                  <span class="inline-flex ggm-rewind">
+                    <FiRotateCcw />
+                  </span>
+                </Button>
+              </Show>
             </div>
 
-            {/* [←] [range label → date jump] [→], centered as one group */}
-            <div class="flex min-w-0 flex-1 items-center justify-center gap-1">
+            {/* [←] [range label → date jump] [→], strictly centered */}
+            <div class="flex items-center gap-1 justify-self-center">
               <Button
                 size="icon"
                 onClick={() => setOffset(o => o - 1)}
@@ -250,14 +276,9 @@ const StatisticsPage: Component = () => {
               >
                 <FiChevronRight />
               </Button>
-              <Show when={offset() !== 0}>
-                <Button size="sm" onClick={() => setOffset(0)}>
-                  {t('stats.backToCurrent')}
-                </Button>
-              </Show>
             </div>
 
-            <span class="text-sm text-gray-500 dark:text-gray-400">
+            <span class="justify-self-end text-sm text-gray-500 dark:text-gray-400">
               {t(
                 `stats.periodPlaytime.${offset() === 0 ? 'current' : 'other'}.${granularity()}`
               )}
