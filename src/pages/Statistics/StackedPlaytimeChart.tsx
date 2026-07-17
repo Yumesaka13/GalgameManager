@@ -53,7 +53,6 @@ interface StackedPlaytimeChartProps {
   class?: string
 }
 
-const HEIGHT = 300
 const MARGIN = { top: 22, right: 8, bottom: 32, left: 40 }
 const TRANSITION_MS = 280
 
@@ -77,6 +76,11 @@ const StackedPlaytimeChart: Component<StackedPlaytimeChartProps> = props => {
   let wrapRef: HTMLDivElement | undefined
   let svgRef: SVGSVGElement | undefined
   const [width, setWidth] = createSignal(0)
+  // Height is driven by the parent flex item (proportional split with the
+  // per-game list), so we measure it the same way as width instead of using
+  // a hardcoded constant — the chart now fills whatever vertical slice it
+  // is given.
+  const [height, setHeight] = createSignal(0)
   const [tip, setTip] = createSignal<{
     x: number
     y: number
@@ -93,7 +97,10 @@ const StackedPlaytimeChart: Component<StackedPlaytimeChartProps> = props => {
 
   onMount(() => {
     const ro = new ResizeObserver(entries => {
-      setWidth(Math.max(0, Math.floor(entries[0]?.contentRect.width ?? 0)))
+      const rect = entries[0]?.contentRect
+      if (!rect) return
+      setWidth(Math.max(0, Math.floor(rect.width)))
+      setHeight(Math.max(0, Math.floor(rect.height)))
     })
     if (wrapRef) ro.observe(wrapRef)
     onCleanup(() => ro.disconnect())
@@ -105,6 +112,7 @@ const StackedPlaytimeChart: Component<StackedPlaytimeChartProps> = props => {
       props.series,
       props.focusGameId,
       width(),
+      height(),
       colorMode() === 'dark',
       props.units,
       props.locale
@@ -116,13 +124,14 @@ const StackedPlaytimeChart: Component<StackedPlaytimeChartProps> = props => {
     series: ChartSeriesItem[],
     focus: number | null,
     w: number,
+    h: number,
     dark: boolean,
     units: DurationUnits,
     locale: string
   ) {
-    if (!svgRef || w <= 0 || data.length === 0) return
+    if (!svgRef || w <= 0 || h <= 0 || data.length === 0) return
     const innerW = w - MARGIN.left - MARGIN.right
-    const innerH = HEIGHT - MARGIN.top - MARGIN.bottom
+    const innerH = h - MARGIN.top - MARGIN.bottom
 
     const maxTotal = Math.max(1, d3.max(data, d => d.total) ?? 1)
     const useHours = maxTotal >= 3600
@@ -148,7 +157,7 @@ const StackedPlaytimeChart: Component<StackedPlaytimeChartProps> = props => {
     const colorOf = new Map(series.map(s => [s.id, s.color] as const))
 
     const svg = d3.select(svgRef)
-    svg.attr('width', w).attr('height', HEIGHT).attr('viewBox', `0 0 ${w} ${HEIGHT}`)
+    svg.attr('width', w).attr('height', h).attr('viewBox', `0 0 ${w} ${h}`)
     let root = svg.select<SVGGElement>('g.root')
     if (root.empty()) {
       root = svg.append('g').attr('class', 'root')
@@ -455,7 +464,7 @@ const StackedPlaytimeChart: Component<StackedPlaytimeChartProps> = props => {
       : bucket.key
 
   return (
-    <div ref={wrapRef} class={`relative w-full ${props.class ?? ''}`}>
+    <div ref={wrapRef} class={`relative h-full w-full ${props.class ?? ''}`}>
       <svg ref={svgRef} class="block" role="img" />
       <Show when={tipData()}>
         {td => (

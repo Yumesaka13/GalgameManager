@@ -276,8 +276,15 @@ const StatisticsPage: Component = () => {
               </div>
             }
           >
-            {/* ── stacked bar chart ── */}
-            <div class="shrink-0 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+            {/* ── stacked bar chart ──
+                 The chart and the per-game list split the viewport
+                 proportionally (flex-[3] vs flex-[2], i.e. ~60/40) instead of
+                 the chart being a fixed height. min-h/max-h clamp the chart so
+                 it stays readable on short windows and never wastes space on
+                 tall ones; whatever is left goes to the list, which scrolls
+                 internally. The chart's height is reactive (ResizeObserver
+                 inside), so it always fills this flex item. */}
+            <div class="flex min-h-[200px] max-h-[420px] flex-[3] flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
               <StackedPlaytimeChart
                 data={bucketData()}
                 series={series()}
@@ -289,12 +296,10 @@ const StatisticsPage: Component = () => {
             </div>
 
             {/* ── per-game bars ──
-                The list fills whatever vertical space is left below the chart
-                and scrolls internally, so the chart stays pinned on screen
-                even with many games. flex-1 + min-h-0 acts as a viewport-
-                aware max-height: it grows to fill tall windows (no empty
-                space below) and shrinks on short windows (no page scroll). */}
-            <div class="flex min-h-0 flex-1 flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                 Takes the remaining ~40% of the viewport and scrolls
+                 internally. min-h-0 lets it shrink below its content so the
+                 chart's min-h always wins when the window is short. */}
+            <div class="flex min-h-0 flex-[2] flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
               <h2 class="mb-2 shrink-0 text-sm font-semibold text-gray-700 dark:text-gray-300">
                 {t('stats.perGameTitle')}
               </h2>
