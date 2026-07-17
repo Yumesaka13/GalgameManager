@@ -1,3 +1,4 @@
+import { pickRandom } from '~/lib/utils'
 import type { DeepPartial } from '.'
 import type { RawDictionary } from './en-US'
 
@@ -111,7 +112,14 @@ export const dict: DeepPartial<RawDictionary> = {
   },
   stats: {
     self: '统计',
-    noData: '该时间段内暂无游玩数据，启动游戏即可开始统计！',
+    noDataCurrent: () =>
+      pickRandom([
+        'Ciallo～(∠・ω< )',
+        '去成为真正的旮旯给木高手吧！',
+        '需要我给你三个选项吗？',
+        'わたしも、高性能ですから！'
+      ]),
+    noDataPast: '无游玩记录',
     periodPlaytime: {
       current: {
         week: '本周游玩时长',

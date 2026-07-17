@@ -393,8 +393,9 @@ export const dict = {
   },
   stats: {
     self: 'Statistics',
-    noData:
+    noDataCurrent: () =>
       'No playtime data in this period. Start playing a game to see your statistics!',
+    noDataPast: 'No play records',
     periodPlaytime: {
       current: {
         week: "This week's playtime",

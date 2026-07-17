@@ -293,7 +293,7 @@ const StatisticsPage: Component = () => {
             when={rangeTotalSecs() > 0}
             fallback={
               <div class="flex h-40 items-center justify-center rounded-lg border border-gray-200 text-sm text-gray-400 dark:border-gray-700 dark:text-gray-500">
-                {t('stats.noData')}
+                {t(offset() === 0 ? 'stats.noDataCurrent' : 'stats.noDataPast')}
               </div>
             }
           >
