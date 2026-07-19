@@ -83,13 +83,15 @@ export async function launchGame(game: Game, t: TFunc): Promise<void> {
       toast.success(game.name + t('hint.isRunning'))
     }),
     once<GameExitPayload>(`game://exit/${game.id}`, event => {
+      // Log and Show the session duration message
       setPlayingIds(prev => prev.filter(id => id !== game.id))
 
       const secs = event.payload.session_secs
       const duration = formatSessionDuration(secs * 1000)
-
+      
       if (event.payload.success) {
-        toast.success(`${game.name} ${t('game.sessionDuration', { duration })}`)
+        log.info(`Game session finished. Duration: ${duration}`)
+        toast.success(`${game.name} ${t('game.sessionDuration', { duration })}`, { duration: 8000 })
       } else {
         toast.error(`${game.name}${t('hint.exitAbnormally')} (${duration})`)
       }
