@@ -24,6 +24,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 async-trait               = "0.1.89"
 backhand                  = "0.25.1"
+backon                    = "1"
 chrono                    = { version = "0.4", features = ["serde"] }
 config-file2              = "0.6"
 dashmap                   = "6"

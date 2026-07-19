@@ -1,5 +1,6 @@
 use std::{fs, path::PathBuf, sync::LazyLock as Lazy, time::Duration};
 
+use backon::{ExponentialBuilder, Retryable};
 use dashmap::{DashMap, mapref::entry::Entry};
 use log::{debug, info, warn};
 use reqwest::{Client, header};
@@ -7,7 +8,7 @@ use sha2::{Digest, Sha256};
 use tauri::http::Response;
 use tokio::sync::broadcast::{self, error::RecvError};
 
-use crate::error::Result;
+use crate::error::{Error, ReqwestDetailedError, Result};
 
 /// Hex length of a cache key produced by [`hash_image`].
 pub(crate) const HASH_HEX_LEN: usize = 32;
@@ -247,13 +248,68 @@ pub(crate) fn image_protocol_handler(request: tauri::http::Request<Vec<u8>>) -> 
     }
 }
 
-async fn download_image(url: &str) -> Result<Vec<u8>> {
+/// Maximum number of retry attempts for a single image download (not counting
+/// the initial attempt). Matches the value used by the opendal `RetryLayer`
+/// for sync operations, see `sync::RETRY_TIMES`.
+const IMAGE_RETRY_TIMES: usize = 3;
+
+/// Upper bound on the exponential backoff between retries.
+const IMAGE_RETRY_MAX_DELAY: Duration = Duration::from_secs(5);
+
+/// One attempt to download the image bytes for `url`. Doesn't retry on its
+/// own; retry is added by [`download_image`] via `backon`.
+async fn download_image_once(url: &str) -> Result<Vec<u8>> {
     // `error_for_status` turns 4xx/5xx responses into `reqwest::Error` (carrying
     // the status code + url), which `From<reqwest::Error>` renders as a clear
     // "HTTP <code> <reason> (client/server error) for <url>" message — instead
     // of silently caching the error body (e.g. a 404 HTML page) as an image.
     let resp = IMAGE_CLIENT.get(url).send().await?.error_for_status()?;
     Ok(resp.bytes().await?.to_vec())
+}
+
+/// Download an image with retry. Retries are limited to transient failures
+/// (transport errors and HTTP 5xx); 4xx client errors and non-network errors
+/// surface immediately. See [`should_retry_image_error`] for the policy.
+async fn download_image(url: &str) -> Result<Vec<u8>> {
+    (|| async { download_image_once(url).await })
+        .retry(
+            ExponentialBuilder::default()
+                .with_max_times(IMAGE_RETRY_TIMES)
+                .with_max_delay(IMAGE_RETRY_MAX_DELAY)
+                .with_jitter(),
+        )
+        .when(should_retry_image_error)
+        .notify(|err: &Error, dur: Duration| {
+            // The ReqwestDetailedError Display already surfaces URL, status
+            // and root cause, so the top-level `Error` Display is enough —
+            // no need to flatten the whole chain here.
+            log::warn!("[image] retrying download after {:?}: {}", dur, err);
+        })
+        .await
+}
+
+/// Decide whether an image download error is worth retrying.
+///
+/// - HTTP 5xx (server errors): retry — the server may recover.
+/// - HTTP 4xx (client errors): do not retry — permanent, retrying wastes a
+///   request and may hammer the origin.
+/// - Transport errors (timeout / connection reset / decode hiccup) have no HTTP
+///   status — retry, they're typically transient.
+/// - Non-network failures (disk write, etc.) — do not retry.
+fn should_retry_image_error(err: &Error) -> bool {
+    match err {
+        Error::Network(ReqwestDetailedError(e)) => should_retry_for_status(e.status()),
+        _ => false,
+    }
+}
+
+/// Pure part of [`should_retry_image_error`], factored out so it can be
+/// exercised by unit tests without constructing a synthetic `reqwest::Error`.
+fn should_retry_for_status(status: Option<reqwest::StatusCode>) -> bool {
+    match status {
+        Some(s) => s.is_server_error(),
+        None => true, // transport-level error (no HTTP status at all)
+    }
 }
 
 #[cfg(test)]
@@ -350,5 +406,35 @@ mod tests {
         // uppercase; the protocol handler accepts it, so we do too.
         let upper = "A".repeat(HASH_HEX_LEN);
         assert!(is_valid_hash(&upper));
+    }
+
+    #[test]
+    fn should_retry_tests() {
+        // No HTTP status -> transport error (timeout / connection reset) ->
+        // always retry.
+        assert!(should_retry_for_status(None));
+
+        for code in [500, 502, 503, 504] {
+            let status = reqwest::StatusCode::from_u16(code).unwrap();
+            assert!(
+                should_retry_for_status(Some(status)),
+                "expected {code} to be retryable"
+            );
+        }
+
+        // 4xx client errors are permanent — retrying just hammers the origin.
+        for code in [400, 401, 403, 404, 410, 422] {
+            let status = reqwest::StatusCode::from_u16(code).unwrap();
+            assert!(
+                !should_retry_for_status(Some(status)),
+                "expected {code} to NOT be retryable"
+            );
+        }
+
+        // Defensive: 2xx shouldn't reach the retry path, but if it does we
+        // shouldn't retry (and the error_for_status wouldn't have produced
+        // such an error in the first place).
+        let status = reqwest::StatusCode::OK;
+        assert!(!should_retry_for_status(Some(status)));
     }
 }
