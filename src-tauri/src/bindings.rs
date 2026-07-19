@@ -365,3 +365,11 @@ pub fn clear_all_daily_playtime() -> Result<()> {
     lock.store()?;
     Ok(())
 }
+
+#[tauri::command(async)]
+pub async fn show_main_window(app: tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}

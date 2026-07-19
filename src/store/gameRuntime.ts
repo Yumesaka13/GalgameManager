@@ -82,7 +82,16 @@ export async function launchGame(game: Game, t: TFunc): Promise<void> {
       setPlayingIds(prev => [...prev, game.id])
       toast.success(game.name + t('hint.isRunning'))
     }),
-    once<GameExitPayload>(`game://exit/${game.id}`, event => {
+    once<GameExitPayload>(`game://exit/${game.id}`, async event => {
+      // Bring the window to front
+      try {
+        await invoke('show_main_window')
+      } catch (error) {
+        log.error(`Failed to bring window to front: ${error}`);
+      }
+      
+
+      // Show the session duration message
       setPlayingIds(prev => prev.filter(id => id !== game.id))
 
       const secs = event.payload.session_secs

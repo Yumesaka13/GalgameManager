@@ -70,6 +70,7 @@ pub fn run() {
             open_game_dir,
             paths_exist,
             clear_all_daily_playtime,
+            show_main_window,
         ])
         .register_uri_scheme_protocol("galimg", |_, request| {
             crate::http::image_protocol_handler(request)
