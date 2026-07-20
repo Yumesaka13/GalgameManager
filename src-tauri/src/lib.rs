@@ -79,6 +79,10 @@ pub fn run() {
             let res = LOG_HANDLE.set(handle);
             debug_assert!(res.is_ok());
 
+            // Spawn the config-writer task first so every later CONFIG
+            // mutation can rely on it. See [`db::saver`] for the rationale.
+            let _ = crate::db::saver::ConfigSaver::init(app.handle());
+
             #[cfg(desktop)]
             {
                 _ = app
@@ -246,6 +250,9 @@ pub fn run() {
             }
             tauri::RunEvent::ExitRequested { api, code, .. } => {
                 _ = app.save_window_state(StateFlags::all());
+                // Flush config before anything else so a pending throttled
+                // write is never lost on exit.
+                crate::db::saver::ConfigSaver::force_save_blocking("app_exit");
                 if code == Some(114514) {
                     if let Some(window) = app.get_webview_window("main") {
                         let _ = window.minimize();

@@ -1,5 +1,6 @@
 pub mod device;
 mod migration;
+pub mod saver;
 pub mod settings;
 
 use std::{collections::HashMap, fs, path::PathBuf, sync::LazyLock as Lazy};
@@ -220,18 +221,52 @@ impl Config {
         Ok(())
     }
 
+    /// Emit `config://updated` and request a *throttled* save through the
+    /// global [`ConfigSaver`](saver::ConfigSaver). The change reaches disk
+    /// within `MIN_INTERVAL`, at most once per window. `last_updated` is
+    /// **not** bumped here. File I/O happens on the writer task, so the
+    /// `CONFIG` mutex is never held across disk writes.
+    #[inline]
+    pub fn save_and_emit_no_update(&self, app_handle: &AppHandle) -> Result<()> {
+        app_handle.emit("config://updated", &self)?;
+        saver::ConfigSaver::request("save_and_emit_no_update");
+        Ok(())
+    }
+
+    /// Same as [`save_and_emit_no_update`] but also bumps `last_updated`.
+    /// Use this when the mutation originates from the frontend or another
+    /// "real" user action; reserve the `_no_update` variant for internal
+    /// bookkeeping (e.g. `last_sync`).
     #[inline]
     pub fn save_and_emit(&mut self, app_handle: &AppHandle) -> Result<()> {
         self.last_updated = Utc::now();
         self.save_and_emit_no_update(app_handle)
     }
 
-    /// Save config without updating last_updated. This is useful in some cases.
+    /// Emit, then request an *immediate* save that bypasses the throttle.
+    /// Use only for critical paths (remote config apply, game exit) where
+    /// waiting `MIN_INTERVAL` could lose data.
+    ///
+    /// The write itself is queued to the single writer task (non-blocking,
+    /// so the caller may hold the `CONFIG` mutex); serialising forced and
+    /// throttled writes through one task is what prevents a stale
+    /// throttled snapshot from overwriting a newer forced write.
     #[inline]
-    pub fn save_and_emit_no_update(&mut self, app_handle: &AppHandle) -> Result<()> {
-        self.store()?;
+    pub fn force_save_and_emit_no_update(&self, app_handle: &AppHandle) -> Result<()> {
         app_handle.emit("config://updated", &self)?;
+        if !saver::ConfigSaver::request_force("force_save_and_emit_no_update") {
+            // Saver not initialised (early startup): write through directly.
+            self.store()?;
+        }
         Ok(())
+    }
+
+    /// Same as [`force_save_and_emit_no_update`] but also bumps
+    /// `last_updated`.
+    #[inline]
+    pub fn force_save_and_emit(&mut self, app_handle: &AppHandle) -> Result<()> {
+        self.last_updated = Utc::now();
+        self.force_save_and_emit_no_update(app_handle)
     }
 }
 
