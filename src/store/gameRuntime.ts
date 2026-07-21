@@ -13,6 +13,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { once } from '@tauri-apps/api/event'
 import { log } from '@utils/log'
 import { formatSessionDuration } from '@utils/time'
+import { showOrDefer } from '@utils/toastFocus'
 import type { Dictionary } from '~/i18n'
 import { useConfig } from '~/store'
 import { createSignal } from 'solid-js'
@@ -53,7 +54,7 @@ export async function initGameRuntime(t: TFunc): Promise<void> {
   try {
     ids = await invoke<number[]>('running_game_ids')
   } catch (e) {
-    log.error(`[GameRuntime] failed to query running games: ${e}`)
+    log.error(`Failed to query running games: ${e}`)
     return
   }
 
@@ -82,16 +83,18 @@ export async function launchGame(game: Game, t: TFunc): Promise<void> {
       setPlayingIds(prev => [...prev, game.id])
       toast.success(game.name + t('hint.isRunning'))
     }),
-    once<GameExitPayload>(`game://exit/${game.id}`, event => {
+    once<GameExitPayload>(`game://exit/${game.id}`, event => {     
       // Log and Show the session duration message
       setPlayingIds(prev => prev.filter(id => id !== game.id))
 
       const secs = event.payload.session_secs
       const duration = formatSessionDuration(secs * 1000)
-      
+
       if (event.payload.success) {
         log.info(`Game session finished. Duration: ${duration}`)
-        toast.success(`${game.name} ${t('game.sessionDuration', { duration })}`, { duration: 8000 })
+        showOrDefer(() =>
+          toast.success(`${game.name} ${t('game.sessionDuration', { duration })}`)
+        )
       } else {
         toast.error(`${game.name}${t('hint.exitAbnormally')} (${duration})`)
       }
